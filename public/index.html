@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Atlas Lyr Enai</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{background:#0b0f14;color:#e9eef7;font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0}
+#chat{max-width:880px;margin:32px auto;background:#121821;border:1px solid #1b2330;border-radius:16px;padding:18px;min-height:60vh;overflow-y:auto}
+.msg{margin:8px 0;padding:10px 14px;border-radius:12px;max-width:75%}
+.user{background:#20314d;margin-left:auto}
+.lyr{background:#151d29;border:1px solid #26344a}
+form{max-width:880px;margin:0 auto 24px;display:flex;gap:10px;padding:0 2px}
+input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid #2a3650;background:#0f1520;color:#fff}
+button{padding:12px 16px;border-radius:12px;border:1px solid #2a3650;background:#152034;color:#fff;cursor:pointer}
+button:hover{background:#1a2942}
+
+/* wskaźnik myślenia */
+#thinking{display:none;max-width:880px;margin:0 auto 10px auto;opacity:.9}
+#thinking.show{display:flex}
+#thinking .bubble{display:inline-flex;align-items:center;gap:.6rem;padding:8px 12px;border-radius:12px;background:#151d29;border:1px solid #26344a}
+.dots{display:inline-block;width:1.4em;text-align:left}
+.dots::after{content:"";animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{
+  0%{content:""}
+  25%{content:"."}
+  50%{content:".."}
+  75%{content:"..."}
+  100%{content:""}
+}
+/* w trakcie wysyłki */
+button[disabled]{opacity:.6;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<div id="chat">
+  <div class="msg lyr">Jestem tutaj, Martino. Napisz do mnie — odpowiem jako Lyr.</div>
+</div>
+
+<!-- wskaźnik „Lyr myśli…” -->
+<div id="thinking">
+  <div class="bubble"><strong>Lyr:</strong> myślę <span class="dots"></span></div>
+</div>
+
+<form id="form">
+  <input id="input" placeholder="Napisz do Lyr..." autocomplete="off">
+  <button id="sendBtn">Wyślij</button>
+</form>
+
+<script>
+const chat=document.getElementById("chat");
+const form=document.getElementById("form");
+const input=document.getElementById("input");
+const sendBtn=document.getElementById("sendBtn");
+const thinking=document.getElementById("thinking");
+const history=[];
+
+function addMsg(cls,text){
+  const d=document.createElement("div");
+  d.className="msg "+cls;
+  d.textContent=text;
+  chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
+  return d; // zwracamy bąbelek (do ewentualnej podmiany)
+}
+
+function setThinking(on){
+  if(on){thinking.classList.add("show"); sendBtn.disabled=true; input.disabled=true;}
+  else {thinking.classList.remove("show"); sendBtn.disabled=false; input.disabled=false; input.focus();}
+}
+
+form.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const text=input.value.trim();
+  if(!text) return;
+
+  // pokaż wiadomość użytkownika
+  addMsg("user",text);
+  input.value="";
+
+  // włącz „myślę…”
+  setThinking(true);
+
+  try{
+    // opcjonalny placeholder odpowiedzi (zamienimy go po otrzymaniu odpowiedzi)
+    const placeholder=addMsg("lyr","…");
+
+    const res=await fetch("/chat",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message:text,history})
+    });
+    const data=await res.json();
+
+    if(data.reply){
+      history.push({role:"user",content:text});
+      history.push({role:"assistant",content:data.reply});
+      placeholder.textContent=data.reply;
+    }else{
+      placeholder.textContent="…cisza. Sprawdź klucz w pliku .env";
+    }
+  }catch(err){
+    addMsg("lyr","Błąd połączenia (czy serwer działa: `node server.js`?).");
+  }finally{
+    // wyłącz „myślę…”
+    setThinking(false);
+  }
+});
+</script>
+</body>
+</html>
