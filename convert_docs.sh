@@ -2,17 +2,25 @@
 # convert_docs.sh — DOCX/ODT/RTF/PDF → TXT z paskiem postępu i OCR
 set -u
 
-RAW_DOCX="$HOME/atlas-lyr/docx_raw"
-RAW_PDF="$HOME/atlas-lyr/docx_pdf"
-TXT_DIR="$HOME/atlas-lyr/docx_txt"
+## Używaj ścieżek względnych względem katalogu repo (bez twardego $HOME)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$SCRIPT_DIR"
+RAW_DOCX="$ROOT_DIR/docx_raw"
+RAW_PDF="$ROOT_DIR/docx_pdf"
+TXT_DIR="$ROOT_DIR/docx_txt"
 TMP_DIR="$TXT_DIR/.tmp_ocr"
 
 mkdir -p "$RAW_DOCX" "$RAW_PDF" "$TXT_DIR" "$TMP_DIR"
 
-command -v soffice >/dev/null 2>&1  || { echo "❌ Brak LibreOffice (soffice)"; exit 1; }
-command -v pdftotext >/dev/null 2>&1 || { echo "❌ Brak poppler-utils (pdftotext)"; exit 1; }
-command -v pdfinfo   >/dev/null 2>&1 || { echo "❌ Brak poppler-utils (pdfinfo)"; exit 1; }
-command -v tesseract >/dev/null 2>&1 || { echo "❌ Brak tesseract-ocr"; exit 1; }
+missing_tools=()
+command -v soffice >/dev/null 2>&1 || missing_tools+=(soffice)
+command -v pdftotext >/dev/null 2>&1 || missing_tools+=(pdftotext)
+command -v pdfinfo   >/dev/null 2>&1 || missing_tools+=(pdfinfo)
+command -v tesseract >/dev/null 2>&1 || missing_tools+=(tesseract)
+if [ ${#missing_tools[@]} -ne 0 ]; then
+  echo "⚠️ Uwaga: nie znaleziono narzędzi: ${missing_tools[*]}"
+  echo "   Skrypt będzie próbował konwertować to, co jest możliwe, ale nie przerwie pracy serwera."
+fi
 
 # ── policz pracę do zrobienia ──────────────────────────────────────────────────
 docx_list=()

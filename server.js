@@ -1,5 +1,5 @@
 // server.js — Atlas Lyr (Kali, lokalnie, CommonJS + pamięć + Księgi)
-const { spawnSync } = require("child_process");
+const { spawnSync, spawn } = require("child_process");
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -97,8 +97,16 @@ function searchChunks(query, k = 8) {
 
 // ────────────────────────────────
 try {
-  spawnSync("./convert_docs.sh", { cwd: __dirnameResolved, stdio: "inherit", shell: true });
+  // Uruchom konwersję asynchronicznie przy starcie (nie blokuje serwera)
+  if (fs.existsSync(path.join(__dirnameResolved, "convert_docs.sh"))) {
+    try {
+      const p = spawn("./convert_docs.sh", { cwd: __dirnameResolved, shell: true, stdio: "inherit" });
+      p.on("error", (e) => console.error("convert_docs.sh error:", e));
+      p.on("close", (code) => console.log("convert_docs.sh zakończony kodem:", code));
+    } catch (e) { console.error(e); }
+  }
 } catch {}
+// zbuduj indeks RAG na starcie
 loadDocs(); // zbuduj indeks RAG na starcie
 let DOCS_TEXT = "";
 try {
@@ -112,9 +120,9 @@ try {
         const t = fs.readFileSync(path.join(docxDir, file), "utf-8").trim();
         if (t) DOCS_TEXT += `\n\n--- ${file} ---\n` + t;
       } catch {}
-console.log("Księgi wczytane znaków:", DOCS_TEXT.length);
     }
   }
+  console.log("📖 Księgi wczytane znaków:", DOCS_TEXT.length);
 } catch {}
 
 // ────────────────────────────────
@@ -230,6 +238,44 @@ app.get("/status", (_req, res) => {
       ok: true
     });
   } catch (e) {
+    res.status(500).json({ ok: false });
+  }
+});
+
+// Endpoint wywoływany przez frontend do odbudowy esencji i indeksu
+app.post("/reload", (_req, res) => {
+  try {
+    const conv = path.join(__dirnameResolved, "convert_docs.sh");
+    if (!fs.existsSync(conv)) {
+      res.status(404).json({ ok: false, error: "convert_docs.sh nieznaleziony" });
+      return;
+    }
+
+    // uruchom asynchronicznie - zwróć natychmiast, wykonaj rebuild po zakończeniu
+    const child = spawn("./convert_docs.sh", { cwd: __dirnameResolved, shell: true });
+    child.on("error", (e) => console.error("reload: convert error", e));
+    child.on("close", (code) => {
+      console.log("reload: convert_docs.sh zakończony kodem", code);
+      // spróbuj odbudować esencję (distill.js) jeśli jest dostępny
+      try {
+        if (fs.existsSync(path.join(__dirnameResolved, "distill.js"))) {
+          try { spawnSync("node", ["distill.js"], { cwd: __dirnameResolved, stdio: "inherit" }); } catch(e) { console.error(e); }
+        }
+      } catch(e){ console.error(e); }
+
+      // przeładuj indeks w pamięci
+      try { loadDocs(); } catch(e){ console.error(e); }
+
+      // odśwież CORE_SUMMARY
+      try {
+        CORE_SUMMARY = fs.readFileSync(path.join(__dirnameResolved, "core_summary.txt"), "utf-8");
+        console.log("CORE_SUMMARY zaktualizowany", CORE_SUMMARY.length);
+      } catch (e) { console.log("reload: brak core_summary.txt"); }
+    });
+
+    res.json({ ok: true, started: true });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ ok: false });
   }
 });
