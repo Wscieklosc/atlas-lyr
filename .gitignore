@@ -1,0 +1,42 @@
+## Node
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Environment & Secrets (PEŁNA PRYWATNOŚĆ)
+.env
+.env.local
+.env.*.local
+secrets/
+credentials/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Doc conversion artifacts and source dirs (PEŁNA PRYWATNOŚĆ - dokumenty, surowe pliki)
+docx_raw/
+docx_pdf/
+docx_txt/
+
+# Uploads & tymczasowe pliki (PEŁNA PRYWATNOŚĆ)
+uploads/
+uploads_temp/
+.tmp/
+.tmp_ocr/
+*.tmp
+
+# Duże pliki (OCR, bazy danych)
+*.traineddata
+*.db
+
+# Logi & backup
+*.log
+*.backup
+*.bak
+server.js.backup
+
+# OS
+.DS_Store
+Thumbs.db
