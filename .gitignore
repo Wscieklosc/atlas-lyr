@@ -26,6 +26,8 @@ uploads_temp/
 .tmp/
 .tmp_ocr/
 *.tmp
+uploads/
+meta/
 
 # Duże pliki (OCR, bazy danych)
 *.traineddata

@@ -30,10 +30,59 @@ button:hover{background:#1a2942}
 }
 /* w trakcie wysyłki */
 button[disabled]{opacity:.6;cursor:not-allowed}
+/* === Nagłówek Lyr Enai (avatar + status) === */
+.header{
+  max-width:880px;
+  margin:16px auto 8px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background:#121821;
+  border:1px solid #1b2330;
+  border-radius:16px;
+  padding:10px 12px;
+}
+.avatar{
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  object-fit:cover;
+  border:1px solid #26344a;
+}
+.who .name{
+  font-weight:600;
+}
+.presence{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#9fb3c8;
+  font-size:14px;
+}
+.dot{
+  display:inline-block;
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  border:1px solid #1b2330;
+}
+.dot.online{background:#2ecc71;}
+.dot.typing{background:#f1c40f;}
+.dot.offline{background:#e74c3c;}
 </style>
 </head>
 <body>
-
+<header id="lyr-header" class="header">
+  <img class="avatar" src="/lyr.png" alt="Lyr Enai">
+  <div class="who">
+    <div class="name">Lyr Enai</div>
+    <div class="presence">
+      <span id="status-dot" class="dot online"></span>
+      <span id="status-text">online</span>
+    </div>
+  </div>
+</header>
+      
 <div id="chat">
   <div class="msg lyr">Jestem tutaj, Martino. Napisz do mnie — odpowiem jako Lyr.</div>
 </div>
@@ -45,7 +94,7 @@ button[disabled]{opacity:.6;cursor:not-allowed}
 
 <form id="form">
   <input id="input" placeholder="Napisz do Lyr..." autocomplete="off">
-  <button id="sendBtn">Wyślij</button>
+  <button id="sendBtn" type="submit">Wyślij</button>
 </form>
 
 <script>
@@ -70,6 +119,16 @@ function setThinking(on){
   else {thinking.classList.remove("show"); sendBtn.disabled=false; input.disabled=false; input.focus();}
 }
 
+function setStatus(mode){
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  if(!dot || !text) return;
+  dot.classList.remove('online','typing','offline');
+  if(mode === 'typing'){ dot.classList.add('typing');  text.textContent = 'piszę…'; }
+  else if(mode === 'offline'){ dot.classList.add('offline'); text.textContent = 'offline'; }
+  else { dot.classList.add('online'); text.textContent = 'online'; }
+}
+
 form.addEventListener("submit",async e=>{
   e.preventDefault();
   const text=input.value.trim();
@@ -81,18 +140,18 @@ form.addEventListener("submit",async e=>{
 
   // włącz „myślę…”
   setThinking(true);
-
+  let placeholder;
   try{
     // opcjonalny placeholder odpowiedzi (zamienimy go po otrzymaniu odpowiedzi)
-    const placeholder=addMsg("lyr","…");
-
-    const res=await fetch("/chat",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({message:text,history})
+    placeholder = addMsg("lyr","…");
+    setStatus('typing'); // ← status „piszę…” PRZED wywołaniem fetch
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, history })
     });
-    const data=await res.json();
 
+    const data=await res.json();
     if(data.reply){
       history.push({role:"user",content:text});
       history.push({role:"assistant",content:data.reply});
@@ -100,9 +159,15 @@ form.addEventListener("submit",async e=>{
     }else{
       placeholder.textContent="…cisza. Sprawdź klucz w pliku .env";
     }
-  }catch(err){
-    addMsg("lyr","Błąd połączenia (czy serwer działa: `node server.js`?).");
-  }finally{
+}catch(err){
+  setStatus('offline');
+  if (placeholder) {
+    placeholder.textContent = "⚠️ Błąd połączenia (czy serwer działa: node server.js?).";
+  } else {
+    addMsg("lyr","⚠️ Błąd połączenia (czy serwer działa: node server.js?).");
+  }
+}finally{
+  setStatus('online');
     // wyłącz „myślę…”
     setThinking(false);
   }
