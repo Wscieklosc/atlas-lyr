@@ -97,6 +97,12 @@ button[disabled]{opacity:.6;cursor:not-allowed}
   <button id="sendBtn" type="submit">Wyślij</button>
 </form>
 
+<!-- Formularz uploadu (załączniki) -->
+<form id="uploadForm" enctype="multipart/form-data" style="margin:8px 0;">
+  <input type="file" name="files" multiple />
+  <button type="submit">📎 Wyślij załączniki</button>
+</form>
+
 <script>
 const chat=document.getElementById("chat");
 const form=document.getElementById("form");
@@ -104,6 +110,35 @@ const input=document.getElementById("input");
 const sendBtn=document.getElementById("sendBtn");
 const thinking=document.getElementById("thinking");
 const history=[];
+
+// === Upload załączników ===
+const uploadForm = document.getElementById('uploadForm');
+
+uploadForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(uploadForm);
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!data.ok) {
+      alert('❌ Błąd podczas wysyłania pliku.');
+      return;
+    }
+
+    // Pokaż krótką informację + linki do zapisanych plików
+    const list = (data.files || [])
+      .map(f => `${f.name} → ${f.url}`)
+      .join('\n');
+
+    alert('✅ Wysłano!\n' + list);
+
+    // (opcjonalnie) wyczyść pole plików
+    uploadForm.reset();
+  } catch (err) {
+    alert('❌ Błąd połączenia: ' + err.message);
+  }
+});
 
 function addMsg(cls,text){
   const d=document.createElement("div");
