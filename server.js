@@ -18,15 +18,6 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
-  fileFilter: (_req, file, cb) => {
-    const ok = /^(image\/(jpeg|png)|application\/pdf|text\/plain|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/.test(file.mimetype);
-    cb(ok ? null : new Error("bad_type"));
-  }
-});
-
 dotenv.config();
 
 const app = express();
@@ -146,8 +137,13 @@ app.use("/uploads", express.static(path.join(__dirnameResolved, "uploads")));
 
 // Upload (multer)
 const upload = multer({
-  dest: path.join(__dirnameResolved, "uploads"),
-  limits: { fileSize: 20 * 1024 * 1024 } // 20 MB/plik
+  dest: path.join(__dirname, "uploads"),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB/plik
+  fileFilter: (_req, file, cb) => {
+    const ok = /^(image\/(jpeg|png)|application\/pdf|text\/plain|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/.test(file.mimetype);
+    if (ok) return cb(null, true);
+    return cb(new Error("bad_type")); // odrzuć inne typy
+  }
 });
 
 // ────────────────────────────────
