@@ -7,12 +7,19 @@ const OpenAI = require("openai");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const fileUpload = require("express-fileupload");
 
 dotenv.config();
 
 const app = express();
 app.use(express.json({ limit: "5mb" }));
 app.use(cors());
+app.use(fileUpload({
+  limits: { fileSize: 20 * 1024 * 1024 }, // limit 20 MB
+  createParentPath: true
+}));
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = process.env.MODEL || "gpt-5";
@@ -237,6 +244,29 @@ app.post("/reload", (_req, res) => {
 
     res.json({ ok: true, started: true });
   } catch (e) { console.error(e); res.status(500).json({ ok: false }); }
+});
+// ── Upload plików (TXT, DOCX, PDF, JPG, PNG) ────────────────────────────────
+app.post('/api/upload', (req, res) => {
+  if (!req.files || !req.files.file) {
+    return res.status(400).json({ ok: false, error: 'no_file' });
+  }
+
+  const f = req.files.file;
+  const dest = path.join(__dirname, 'uploads', f.name);
+
+  f.mv(dest, (err) => {
+    if (err) {
+      console.error('Błąd przy zapisie pliku:', err);
+      return res.status(500).json({ ok: false, error: 'move_failed' });
+    }
+
+    res.json({
+      ok: true,
+      name: f.name,
+      size: f.size,
+      url: `/uploads/${encodeURIComponent(f.name)}`
+    });
+  });
 });
 
 // start
