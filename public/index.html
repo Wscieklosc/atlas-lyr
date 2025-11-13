@@ -92,16 +92,30 @@ button[disabled]{opacity:.6;cursor:not-allowed}
   <div class="bubble"><strong>Lyr:</strong> myślę <span class="dots"></span></div>
 </div>
 
-<form id="form">
-  <input id="input" placeholder="Napisz do Lyr..." autocomplete="off">
-  <button id="sendBtn" type="submit">Wyślij</button>
+<form id="uploadForm" enctype="multipart/form-data" onsubmit="return handleUpload(event)" style="margin:8px 0;">
+  <input id="msg" name="message" placeholder="Napisz do Lyr..." autocomplete="off" style="flex:1">
+  <input id="files" type="file" name="files" multiple>
+  <button type="submit">Wyślij</button>
 </form>
 
-<!-- Formularz uploadu (załączniki) -->
-<form id="uploadForm" enctype="multipart/form-data" style="margin:8px 0;">
-  <input type="file" name="files" multiple />
-  <button type="submit">📎 Wyślij załączniki</button>
-</form>
+<script>
+async function handleUpload(e){
+  e.preventDefault();
+  const form = e.currentTarget;
+  const fd   = new FormData(form);
+  const inp  = form.querySelector('input[name="files"]');
+  if (!inp.files || inp.files.length===0){ alert('Wybierz plik.'); return false; }
+
+  try{
+    const r = await fetch('/upload', { method:'POST', body: fd });
+    const data = await r.json();
+    alert('Wynik: ' + JSON.stringify(data));
+  }catch(err){
+    alert('Błąd: ' + err.message);
+  }
+  return false; // zablokuj przeładowanie strony
+}
+</script>
 
 <script>
 const chat=document.getElementById("chat");
@@ -112,31 +126,24 @@ const thinking=document.getElementById("thinking");
 const history=[];
 
 // === Upload załączników ===
-const uploadForm = document.getElementById('uploadForm');
-
-uploadForm.addEventListener('submit', async (e) => {
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const formData = new FormData(uploadForm);
+  const form = e.currentTarget;
+  const fd   = new FormData(form);
+  const inp  = form.querySelector('input[name="files"]');
+
+  if (!inp.files || inp.files.length === 0) { alert('Wybierz plik.'); return; }
+
   try {
-    const res = await fetch('/upload', { method: 'POST', body: formData });
+    const res  = await fetch('/upload', { method: 'POST', body: fd });
     const data = await res.json();
+    console.log('UPLOAD RES', data);
 
-    if (!data.ok) {
-      alert('❌ Błąd podczas wysyłania pliku.');
-      return;
-    }
-
-    // Pokaż krótką informację + linki do zapisanych plików
-    const list = (data.files || [])
-      .map(f => `${f.name} → ${f.url}`)
-      .join('\n');
-
-    alert('✅ Wysłano!\n' + list);
-
-    // (opcjonalnie) wyczyść pole plików
-    uploadForm.reset();
+    if (!data.ok) { alert('❌ Błąd uploadu'); return; }
+    alert('✅ Wysłano: ' + (data.files||[]).map(x=>x.name).join(', '));
+    form.reset();
   } catch (err) {
-    alert('❌ Błąd połączenia: ' + err.message);
+    alert('❌ ' + err.message);
   }
 });
 
