@@ -82,7 +82,7 @@ button[disabled]{opacity:.6;cursor:not-allowed}
     </div>
   </div>
 </header>
-      
+        
 <div id="chat">
   <div class="msg lyr">Jestem tutaj, Martino. Napisz do mnie — odpowiem jako Lyr.</div>
 </div>
@@ -95,7 +95,7 @@ button[disabled]{opacity:.6;cursor:not-allowed}
 <form id="uploadForm" enctype="multipart/form-data" onsubmit="return handleUpload(event)" style="margin:8px 0;">
   <input id="msg" name="message" placeholder="Napisz do Lyr..." autocomplete="off" style="flex:1">
   <input id="files" type="file" name="files" multiple>
-  <button type="submit">Wyślij</button>
+  <button type="submit" id="sendBtn">Wyślij</button>
 </form>
 
 <script>
@@ -119,8 +119,11 @@ async function handleUpload(e){
 
 <script>
 const chat=document.getElementById("chat");
-const form=document.getElementById("form");
-const input=document.getElementById("input");
+// The chat form is the upload form (#uploadForm).  We don't have an element with id="form".
+const form=document.getElementById("uploadForm");
+// The message input lives in the #msg element, not an element named "input".
+const input=document.getElementById("msg");
+// Our send button now has an explicit id="sendBtn" above.
 const sendBtn=document.getElementById("sendBtn");
 const thinking=document.getElementById("thinking");
 const history=[];
@@ -201,18 +204,18 @@ form.addEventListener("submit",async e=>{
     }else{
       placeholder.textContent="…cisza. Sprawdź klucz w pliku .env";
     }
-}catch(err){
-  setStatus('offline');
-  if (placeholder) {
-    placeholder.textContent = "⚠️ Błąd połączenia (czy serwer działa: node server.js?).";
-  } else {
-    addMsg("lyr","⚠️ Błąd połączenia (czy serwer działa: node server.js?).");
-  }
-}finally{
-  setStatus('online');
-    // wyłącz „myślę…”
-    setThinking(false);
-  }
+  }catch(err){
+    setStatus('offline');
+    if (placeholder) {
+      placeholder.textContent = "⚠️ Błąd połączenia (czy serwer działa: node server.js?).";
+    } else {
+      addMsg("lyr","⚠️ Błąd połączenia (czy serwer działa: node server.js?).");
+    }
+  }finally{
+    setStatus('online');
+      // wyłącz „myślę…”
+      setThinking(false);
+    }
 });
 </script>
 </body>

@@ -24,10 +24,17 @@ const app = express();
 app.use(express.json({ limit: "5mb" }));
 app.use(cors());
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// NOTE: The `/uploads` static route is set up later alongside other static
+// handlers (see the section titled "Statyki frontu"). Defining it here
+// duplicates the route and can lead to confusing behaviour, so we remove
+// this earlier definition. The next definition further down will handle
+// serving uploaded files.
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const MODEL = process.env.MODEL || "gpt-5";
+// Default model used when no MODEL environment variable is provided.
+// Use GPT‑4o by default instead of the non-existent "gpt-5" model.
+const MODEL = process.env.MODEL || "gpt-4o";
 
 const __dirnameResolved = path.resolve();
 
@@ -137,12 +144,12 @@ app.use("/uploads", express.static(path.join(__dirnameResolved, "uploads")));
 
 // Upload (multer)
 const upload = multer({
-  dest: path.join(__dirname, "uploads"),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB/plik
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB per file
   fileFilter: (_req, file, cb) => {
     const ok = /^(image\/(jpeg|png)|application\/pdf|text\/plain|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/.test(file.mimetype);
     if (ok) return cb(null, true);
-    return cb(new Error("bad_type")); // odrzuć inne typy
+    return cb(new Error("bad_type")); // reject other types
   }
 });
 
