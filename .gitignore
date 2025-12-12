@@ -20,6 +20,7 @@ credentials/
 docx_raw/
 docx_pdf/
 docx_txt/
+core_summary.txt
 
 # Uploads & tymczasowe pliki (PEŁNA PRYWATNOŚĆ)
 uploads/
@@ -30,6 +31,9 @@ uploads_temp/
 uploads/
 meta/
 Backup/
+notes/
+docs/
+lighthouse_raport.md
 
 # Duże pliki (OCR, bazy danych)
 *.traineddata

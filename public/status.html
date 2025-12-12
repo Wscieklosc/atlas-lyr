@@ -1,105 +1,219 @@
 <!doctype html>
 <html lang="pl">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Status wiedzy Lyr</title>
-<style>
-  body{background:#0b0f14;color:#e9eef7;font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0}
-  .wrap{max-width:1100px;margin:24px auto;padding:0 14px}
-  .card{background:#121821;border:1px solid #1b2330;border-radius:16px;padding:16px;margin:12px 0}
-  h1{font-size:22px;margin:10px 0}
-  h2{font-size:16px;margin:0 0 8px 0;color:#b9c7dc}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  .pill{display:inline-block;background:#172131;border:1px solid #26344a;border-radius:999px;padding:4px 10px;margin-right:6px}
-  code,pre{background:#0f141c;border:1px solid #1b2330;border-radius:8px;padding:10px;display:block;overflow:auto}
-  small{opacity:.75}
-  button{background:#1d2a3d;border:1px solid #29405b;color:#e9eef7;border-radius:10px;padding:8px 12px;cursor:pointer}
-  button:hover{filter:brightness(1.1)}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Status wiedzy Lyr</title>
+  <style>
+    body {
+      background: #0b0f14;
+      color: #e9eef7;
+      font-family: system-ui, Segoe UI, Roboto, sans-serif;
+      margin: 0
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 14px
+    }
+
+    .card {
+      background: #121821;
+      border: 1px solid #1b2330;
+      border-radius: 16px;
+      padding: 16px;
+      margin: 12px 0
+    }
+
+    h1 {
+      font-size: 22px;
+      margin: 10px 0
+    }
+
+    h2 {
+      font-size: 16px;
+      margin: 0 0 8px 0;
+      color: #b9c7dc
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .pill {
+      display: inline-block;
+      background: #172131;
+      border: 1px solid #26344a;
+      border-radius: 999px;
+      padding: 4px 10px;
+      margin-right: 6px
+    }
+
+    code,
+    pre {
+      background: #0f141c;
+      border: 1px solid #1b2330;
+      border-radius: 8px;
+      padding: 10px;
+      display: block;
+      overflow: auto
+    }
+
+    small {
+      opacity: .75
+    }
+
+    button {
+      background: #1d2a3d;
+      border: 1px solid #29405b;
+      color: #e9eef7;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer
+    }
+
+    button:hover {
+      filter: brightness(1.1)
+    }
+
+    .auth {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 12px 0
+    }
+
+    .auth input {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #29405b;
+      background: #0f1520;
+      color: #e9eef7;
+      min-width: 240px
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
-  <h1>📖 Status wiedzy Lyr</h1>
+  <div class="wrap">
+    <h1>📖 Status wiedzy Lyr</h1>
 
-  <div class="card" id="top">
-    <h2>Model i serwer</h2>
-    <div id="model"></div>
-    <div id="srv"></div>
-  </div>
-
-  <div class="card">
-    <h2>Pamięć rozmów</h2>
-    <div id="mem"></div>
-    <pre id="memLast"></pre>
-  </div>
-
-  <div class="card">
-    <h2>Księgi (docx_txt)</h2>
-    <div id="docs"></div>
-    <pre id="files"></pre>
-  </div>
-
-  <div class="card">
-    <h2>System prompt</h2>
-    <div id="sp"></div>
-  </div>
-
-  <div class="card">
-    <h2>Narzędzia</h2>
-    <div id="tools"></div>
-    <div style="margin-top:10px" class="row">
-      <button id="reloadBtn">🔄 Przebuduj esencję i indeks (/reload)</button>
-      <button id="openJson">👁 Podgląd JSON</button>
+    <div class="card">
+      <h2>Autoryzacja (opcjonalna)</h2>
+      <div class="auth">
+        <input id="tokenInput" placeholder="Token API (x-api-token)" autocomplete="off" />
+        <button id="saveToken">Zapisz token</button>
+        <small id="tokenInfo">token pusty</small>
+      </div>
     </div>
-    <small>Po zmianach w Księgach kliknij „Przebuduj…”.</small>
+
+    <div class="card" id="top">
+      <h2>Model i serwer</h2>
+      <div id="model"></div>
+      <div id="srv"></div>
+    </div>
+
+    <div class="card">
+      <h2>Pamięć rozmów</h2>
+      <div id="mem"></div>
+      <pre id="memLast"></pre>
+    </div>
+
+    <div class="card">
+      <h2>Księgi (docx_txt)</h2>
+      <div id="docs"></div>
+      <pre id="files"></pre>
+    </div>
+
+    <div class="card">
+      <h2>System prompt</h2>
+      <div id="sp"></div>
+    </div>
+
+    <div class="card">
+      <h2>Narzędzia</h2>
+      <div id="tools"></div>
+      <div style="margin-top:10px" class="row">
+        <button id="reloadBtn">🔄 Przebuduj esencję i indeks (/reload)</button>
+        <button id="openJson">👁 Podgląd JSON</button>
+      </div>
+      <small>Po zmianach w Księgach kliknij „Przebuduj…”.</small>
+    </div>
   </div>
-</div>
 
-<script>
-async function load() {
-  const r = await fetch("/status");
-  const j = await r.json();
+  <script>
+    const tokenInput = document.getElementById("tokenInput");
+    const saveToken = document.getElementById("saveToken");
+    const tokenInfo = document.getElementById("tokenInfo");
 
-  // Model i serwer
-  document.getElementById("model").innerHTML =
-    `<span class="pill">Model: ${j.model}</span>`;
-  document.getElementById("srv").innerHTML =
-    `<span class="pill">PID: ${j.server.pid}</span>` +
-    `<span class="pill">Uptime: ${j.server.uptime_sec}s</span>`;
+    let apiToken = localStorage.getItem("atlasToken") || "";
+    tokenInput.value = apiToken;
+    function updateTokenInfo() {
+      tokenInfo.textContent = apiToken ? "token ustawiony" : "token pusty";
+    }
+    updateTokenInfo();
+    saveToken.onclick = () => {
+      apiToken = tokenInput.value.trim();
+      localStorage.setItem("atlasToken", apiToken);
+      updateTokenInfo();
+    };
+    function authHeaders(base = {}) {
+      if (apiToken) base["x-api-token"] = apiToken;
+      return base;
+    }
 
-  // Pamięć rozmów
-  document.getElementById("mem").innerHTML =
-    `<span class="pill">Wpisy: ${j.memory.items}</span>`;
-  document.getElementById("memLast").textContent =
-    `Ostatni użytkownik: ${j.memory.last_user_sample || "-"}\n` +
-    `Ostatnia Lyr: ${j.memory.last_assistant_sample || "-"}`;
+    async function load() {
+      const r = await fetch("/status", { headers: authHeaders() });
+      const j = await r.json();
 
-  // Księgi
-  document.getElementById("docs").innerHTML =
-    `<span class="pill">Plików: ${j.docs.count}</span>` +
-    `<span class="pill">Znaków (łącznie): ${j.docs.chars_total}</span>`;
-  document.getElementById("files").textContent =
-    (j.docs.files_preview || []).join(" • ");
+      // Model i serwer
+      document.getElementById("model").innerHTML =
+        `<span class="pill">Model: ${j.model}</span>`;
+      document.getElementById("srv").innerHTML =
+        `<span class="pill">PID: ${j.server.pid}</span>` +
+        `<span class="pill">Uptime: ${j.server.uptime_sec}s</span>`;
 
-  // System prompt
-  document.getElementById("sp").innerHTML =
-    `<span class="pill">Bazowy: ${j.system_prompt.base_chars}</span>` +
-    `<span class="pill">Z Księgami: ${j.system_prompt.with_docs_chars}</span>`;
+      // Pamięć rozmów
+      document.getElementById("mem").innerHTML =
+        `<span class="pill">Wpisy: ${j.memory.items}</span>`;
+      document.getElementById("memLast").textContent =
+        `Ostatni użytkownik: ${j.memory.last_user_sample || "-"}\n` +
+        `Ostatnia Lyr: ${j.memory.last_assistant_sample || "-"}`;
 
-  // Narzędzia
-  document.getElementById("tools").innerHTML =
-    `<span class="pill">convert_docs.sh: ${j.tools.convert_docs_sh ? "OK" : "brak"}</span>`;
-}
-load().catch(console.error);
+      // Księgi
+      document.getElementById("docs").innerHTML =
+        `<span class="pill">Plików: ${j.docs.count}</span>` +
+        `<span class="pill">Znaków (łącznie): ${j.docs.chars_total}</span>`;
+      document.getElementById("files").textContent =
+        (j.docs.files_preview || []).join(" • ");
 
-document.getElementById("reloadBtn").onclick = async () => {
-  try {
-    await fetch("/reload", { method: "POST" });
-    setTimeout(load, 1200);
-  } catch(e){ alert("Błąd /reload"); }
-};
-document.getElementById("openJson").onclick = () => { window.open("/status","_blank"); };
-</script>
+      // System prompt
+      document.getElementById("sp").innerHTML =
+        `<span class="pill">Bazowy: ${j.system_prompt.base_chars}</span>` +
+        `<span class="pill">Z Księgami: ${j.system_prompt.with_docs_chars}</span>`;
+
+      // Narzędzia
+      document.getElementById("tools").innerHTML =
+        `<span class="pill">convert_docs.sh: ${j.tools.convert_docs_sh ? "OK" : "brak"}</span>`;
+    }
+    load().catch(err => { alert("Nie można pobrać statusu (czy token jest poprawny?): " + err.message); });
+
+    document.getElementById("reloadBtn").onclick = async () => {
+      try {
+        await fetch("/reload", { method: "POST", headers: authHeaders() });
+        setTimeout(load, 1200);
+      } catch (e) { alert("Błąd /reload"); }
+    };
+    document.getElementById("openJson").onclick = () => {
+      const url = apiToken ? `/status?token=${encodeURIComponent(apiToken)}` : "/status";
+      window.open(url, "_blank");
+    };
+  </script>
 </body>
+
 </html>

@@ -1,222 +1,1060 @@
 <!doctype html>
 <html lang="pl">
+
 <head>
-<meta charset="utf-8">
-<title>Atlas Lyr Enai</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body{background:#0b0f14;color:#e9eef7;font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0}
-#chat{max-width:880px;margin:32px auto;background:#121821;border:1px solid #1b2330;border-radius:16px;padding:18px;min-height:60vh;overflow-y:auto}
-.msg{margin:8px 0;padding:10px 14px;border-radius:12px;max-width:75%}
-.user{background:#20314d;margin-left:auto}
-.lyr{background:#151d29;border:1px solid #26344a}
-form{max-width:880px;margin:0 auto 24px;display:flex;gap:10px;padding:0 2px}
-input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid #2a3650;background:#0f1520;color:#fff}
-button{padding:12px 16px;border-radius:12px;border:1px solid #2a3650;background:#152034;color:#fff;cursor:pointer}
-button:hover{background:#1a2942}
+  <meta charset="utf-8">
+  <title>Atlas Lyr Enai</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --bg-elev: #121821;
+      --text: #e9eef7;
+      --muted: #9fb3c8;
+      --accent: #3a7bd5;
+      --danger: #e74c3c;
+      --ok: #2ecc71;
+    }
 
-/* wskaźnik myślenia */
-#thinking{display:none;max-width:880px;margin:0 auto 10px auto;opacity:.9}
-#thinking.show{display:flex}
-#thinking .bubble{display:inline-flex;align-items:center;gap:.6rem;padding:8px 12px;border-radius:12px;background:#151d29;border:1px solid #26344a}
-.dots{display:inline-block;width:1.4em;text-align:left}
-.dots::after{content:"";animation:dots 1.2s steps(4,end) infinite}
-@keyframes dots{
-  0%{content:""}
-  25%{content:"."}
-  50%{content:".."}
-  75%{content:"..."}
-  100%{content:""}
-}
-/* w trakcie wysyłki */
-button[disabled]{opacity:.6;cursor:not-allowed}
-/* === Nagłówek Lyr Enai (avatar + status) === */
-.header{
-  max-width:880px;
-  margin:16px auto 8px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  background:#121821;
-  border:1px solid #1b2330;
-  border-radius:16px;
-  padding:10px 12px;
-}
-.avatar{
-  width:48px;
-  height:48px;
-  border-radius:50%;
-  object-fit:cover;
-  border:1px solid #26344a;
-}
-.who .name{
-  font-weight:600;
-}
-.presence{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color:#9fb3c8;
-  font-size:14px;
-}
-.dot{
-  display:inline-block;
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  border:1px solid #1b2330;
-}
-.dot.online{background:#2ecc71;}
-.dot.typing{background:#f1c40f;}
-.dot.offline{background:#e74c3c;}
-</style>
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, Segoe UI, Roboto, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    *:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .page {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 10px 10px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    #chat {
+      max-width: 880px;
+      width: 100%;
+      margin: 8px auto 12px;
+      background: var(--bg-elev);
+      border: 1px solid #1b2330;
+      border-radius: 16px;
+      padding: 18px;
+      flex: 1 1 auto;
+      min-height: 200px;
+      overflow-y: auto;
+      box-sizing: border-box;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .msg {
+      margin: 8px 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      max-width: 75%;
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .msg .time {
+      font-size: 11px;
+      color: var(--muted);
+      align-self: flex-end;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .msg .time::before {
+      content: "⏱";
+      font-size: 11px;
+      opacity: .8;
+    }
+
+    .user {
+      background: #20314d;
+      margin-left: auto
+    }
+
+    .lyr {
+      background: #151d29;
+      border: 1px solid #26344a
+    }
+
+    form {
+      max-width: 880px;
+      width: 100%;
+      margin: 0 auto 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 0 2px;
+      box-sizing: border-box;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid #2a3650;
+      background: #0f1520;
+      color: #fff
+    }
+
+    button {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid #2a3650;
+      background: #152034;
+      color: #fff;
+      cursor: pointer
+    }
+
+    button:hover {
+      background: #1a2942
+    }
+
+    /* wskaźnik myślenia – usunięty, status pokazuje dot przy avatarze */
+
+    /* w trakcie wysyłki */
+    button[disabled] {
+      opacity: .6;
+      cursor: not-allowed
+    }
+
+    /* === Nagłówek Lyr Enai (avatar + status) === */
+    .header {
+      max-width: 940px;
+      width: 100%;
+      margin: 24px auto 12px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #121821;
+      border: 1px solid #1b2330;
+      border-radius: 20px;
+      padding: 16px 18px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.38);
+      justify-content: space-between;
+    }
+
+    .avatar {
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #26344a;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+    }
+
+    .who .name {
+      font-weight: 600;
+      font-size: 17px;
+    }
+
+    .presence {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      color: #9fb3c8;
+      font-size: 13px;
+    }
+
+    .presence-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .billing-row {
+      display: none;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid #1b2330;
+    }
+
+    .dot.online {
+      background: #2ecc71;
+    }
+
+    .dot.typing {
+      background: #f1c40f;
+    }
+
+    .dot.offline {
+      background: #e74c3c;
+    }
+
+    .dot.token-ok {
+      background: #2ecc71;
+    }
+
+    .dot.token-missing {
+      background: #e74c3c;
+    }
+
+    .input-row {
+      max-width: 880px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: #121821;
+      border: 1px solid #1b2330;
+      border-radius: 12px;
+      padding: 6px 8px;
+      box-sizing: border-box;
+    }
+
+    .input-row input {
+      background: #0f1520;
+      color: #e9eef7;
+      border: 1px solid #2a3650;
+    }
+
+    .input-row button {
+      background: #152034;
+      border: 1px solid #2a3650;
+    }
+
+    .upload-row {
+      max-width: 880px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 0 2px;
+      box-sizing: border-box;
+      flex-wrap: wrap;
+    }
+
+    .upload-row input[type=file] {
+      display: none;
+    }
+
+    .upload-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      height: 30px;
+      min-width: 90px;
+      border-radius: 9px;
+      border: 1px solid #2a3650;
+      background: #111929;
+      color: #e9eef7;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .upload-note {
+      flex: 1 1 240px;
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 8px;
+      border-radius: 9px;
+      border: 1px dashed #2a3650;
+      color: #9fb3c8;
+      font-size: 12px;
+      background: #0f1520;
+    }
+
+    .upload-row button {
+      padding: 6px 10px;
+      height: 30px;
+      border-radius: 9px;
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      display: inline-block;
+    }
+
+    .privacy-on .msg .text {
+      filter: blur(6px);
+      transition: filter .2s;
+    }
+
+    .dropzone-active {
+      outline: 2px dashed var(--accent);
+      outline-offset: 6px;
+    }
+
+    .hint-row {
+      max-width: 880px;
+      margin: 0 auto 4px;
+      padding: 0 2px;
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .controls-row {
+      max-width: 880px;
+      margin: 0 auto 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 0 2px;
+    }
+
+    .preview-row {
+      max-width: 880px;
+      margin: 4px auto 4px;
+      padding: 4px 2px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .preview-item {
+      border: 1px solid #2a3650;
+      border-radius: 10px;
+      padding: 6px;
+      background: #0f1520;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .preview-item img {
+      width: 42px;
+      height: 42px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #1b2330;
+    }
+
+    .progress {
+      width: 80px;
+      height: 6px;
+      background: #0b0f14;
+      border: 1px solid #2a3650;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+    }
+
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .switch input {
+      display: none;
+    }
+
+    .slider {
+      position: relative;
+      width: 44px;
+      height: 22px;
+      background: #0f1520;
+      border-radius: 22px;
+      border: 1px solid #2a3650;
+      transition: background .2s;
+    }
+
+    .slider::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      background: #9fb3c8;
+      border-radius: 50%;
+      transition: transform .2s, background .2s;
+    }
+
+    .switch input:checked + .slider {
+      background: #1f2b3d;
+    }
+
+    .switch input:checked + .slider::after {
+      transform: translateX(22px);
+      background: var(--accent);
+    }
+
+    .switch-label {
+      color: var(--muted);
+    }
+
+    .token-inline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 1 320px;
+      min-width: 240px;
+      color: #9fb3c8;
+      font-size: 12px;
+    }
+
+    .token-inline input {
+      flex: 1;
+      padding: 7px 10px;
+      height: 30px;
+      background: #0f1520;
+      color: #e9eef7;
+      border: 1px solid #2a3650;
+      border-radius: 8px;
+    }
+
+    .token-inline button {
+      padding: 6px 10px;
+      height: 30px;
+      border-radius: 8px;
+    }
+
+    #chat::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    #chat::-webkit-scrollbar-track {
+      background: #0f1520;
+      border-radius: 10px;
+    }
+
+    #chat::-webkit-scrollbar-thumb {
+      background: #1f2b3d;
+      border-radius: 10px;
+      border: 1px solid #2a3650;
+    }
+
+    #chat::-webkit-scrollbar-thumb:hover {
+      background: #2a3b54;
+    }
+
+    #chat {
+      scrollbar-color: #1f2b3d #0f1520;
+      scrollbar-width: thin;
+    }
+  </style>
 </head>
+
 <body>
-<header id="lyr-header" class="header">
-  <img class="avatar" src="/lyr.png" alt="Lyr Enai">
-  <div class="who">
-    <div class="name">Lyr Enai</div>
-    <div class="presence">
-      <span id="status-dot" class="dot online"></span>
-      <span id="status-text">online</span>
-    </div>
+  <div class="page">
+    <header id="lyr-header" class="header">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <img class="avatar" src="/lyr.png" alt="Lyr Enai">
+        <div class="who">
+          <div class="name">Lyr Enai</div>
+          <div class="presence">
+            <div class="presence-row">
+              <span id="status-dot" class="dot online"></span>
+              <span id="status-text">online</span>
+            </div>
+            <div class="presence-row">
+              <span id="token-status-dot" class="dot token-missing" title="Token"></span>
+              <span id="token-status-text">token</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="logoutBtn" aria-label="Wyloguj i zamknij">Wyloguj</button>
+      </div>
+    </header>
+
+    <form id="chatForm" style="margin-top:8px;" enctype="multipart/form-data">
+      <div class="input-row">
+        <input id="msg" name="message" placeholder="Napisz do Lyr..." autocomplete="off" style="flex:1" aria-label="Pole wiadomości" role="textbox">
+        <button type="submit" id="sendBtn" aria-label="Wyślij wiadomość" role="button">Wyślij</button>
+      </div>
+      <div class="hint-row">
+        <span>Skróty: Enter = wyślij, Shift+Enter = nowa linia, /scan /img /diff /cisza</span>
+        <label class="switch" style="margin-left:auto;">
+          <input type="checkbox" id="searchToggle" aria-label="Użyj wyszukiwarki">
+          <span class="slider"></span>
+          <span class="switch-label">Użyj sieci</span>
+        </label>
+      </div>
+      <div class="upload-row">
+        <label for="files" class="upload-label" aria-label="Dodaj załącznik" role="button">Załącznik</label>
+        <span id="uploadNote" class="upload-note">Brak pliku</span>
+        <input id="files" type="file" name="files" multiple aria-label="Wybierz pliki">
+        <button type="button" id="settingsBtn" aria-label="Otwórz ustawienia" role="button">Ustawienia</button>
+      </div>
+      <div class="controls-row">
+        <label class="switch">
+          <input type="checkbox" id="persistToggle" aria-label="Zapisuj rozmowy lokalnie">
+          <span class="slider"></span>
+          <span class="switch-label">Zapisuj rozmowy lokalnie</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="privacyToggle" aria-label="Tryb prywatności">
+          <span class="slider"></span>
+          <span class="switch-label">Tryb prywatności</span>
+        </label>
+        <button type="button" id="exportTxt" aria-label="Eksportuj rozmowę do TXT">Eksport TXT</button>
+        <button type="button" id="exportJson" aria-label="Eksportuj rozmowę do JSON">Eksport JSON</button>
+        <button type="button" id="clearSession" aria-label="Wyczyść sesję">Wyczyść sesję</button>
+        <button type="button" id="saveServer" aria-label="Zapisz rozmowę na serwerze">Zapisz na serwerze</button>
+      </div>
+      <div id="settingsPanel" style="display:none;flex-direction:column;gap:10px;padding:10px;border:1px solid #1b2330;border-radius:12px;background:var(--bg-elev);">
+        <strong>Ustawienia → Bezpieczeństwo</strong>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <span style="min-width:100px;">Token API</span>
+          <input id="tokenInput" type="password" placeholder="Podaj token" autocomplete="off" aria-label="Token API (maskowany)">
+          <button type="button" id="saveToken" aria-label="Zapisz token" role="button">Zapisz</button>
+          <small style="color:var(--muted)">Token nie jest logowany (TODO: nigdy nie logować)</small>
+        </label>
+      </div>
+    </form>
+    <div id="previewRow" class="preview-row" aria-label="Podgląd załączników"></div>
+  <div id="chat" aria-label="Historia czatu" role="log">
+    <div class="msg lyr">Jestem tutaj, Martino. Napisz do mnie — odpowiem jako Lyr.</div>
   </div>
-</header>
-        
-<div id="chat">
-  <div class="msg lyr">Jestem tutaj, Martino. Napisz do mnie — odpowiem jako Lyr.</div>
+
 </div>
 
-<!-- wskaźnik „Lyr myśli…” -->
-<div id="thinking">
-  <div class="bubble"><strong>Lyr:</strong> myślę <span class="dots"></span></div>
-</div>
-
-<form id="uploadForm" enctype="multipart/form-data" onsubmit="return handleUpload(event)" style="margin:8px 0;">
-  <input id="msg" name="message" placeholder="Napisz do Lyr..." autocomplete="off" style="flex:1">
-  <input id="files" type="file" name="files" multiple>
-  <button type="submit" id="sendBtn">Wyślij</button>
-</form>
-
 <script>
-async function handleUpload(e){
-  e.preventDefault();
-  const form = e.currentTarget;
-  const fd   = new FormData(form);
-  const inp  = form.querySelector('input[name="files"]');
-  if (!inp.files || inp.files.length===0){ alert('Wybierz plik.'); return false; }
+    function autoScroll(force = false) {
+      const threshold = 100;
+      const distance = chat.scrollHeight - (chat.scrollTop + chat.clientHeight);
+      if (force || distance < threshold) {
+        chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+      }
+    }
 
-  try{
-    const r = await fetch('/upload', { method:'POST', body: fd });
-    const data = await r.json();
-    alert('Wynik: ' + JSON.stringify(data));
-  }catch(err){
-    alert('Błąd: ' + err.message);
-  }
-  return false; // zablokuj przeładowanie strony
-}
-</script>
+    function handleSlashCommand(text) {
+      if (!text.startsWith("/")) return false;
+      const cmd = text.split(/\s+/)[0].toLowerCase();
+      const actions = {
+        "/scan": "Skanuję pamięć — opisz proszę, co mam wyszukać.",
+        "/img": "Wyślij obraz jako załącznik — zrobię opis / alt-text.",
+        "/diff": "Podaj dwa fragmenty tekstu, porównam i wskażę różnice.",
+        "/cisza": "Jestem tu w ciszy. Napisz, gdy będziesz chciał kontynuować."
+      };
+      const reply = actions[cmd] || "Nieznana komenda. Dostępne: /scan /img /diff /cisza";
+      addMsg("user", text);
+      addMsg("lyr", reply);
+      saveConversation();
+      return true;
+    }
 
-<script>
-const chat=document.getElementById("chat");
-// The chat form is the upload form (#uploadForm).  We don't have an element with id="form".
-const form=document.getElementById("uploadForm");
-// The message input lives in the #msg element, not an element named "input".
-const input=document.getElementById("msg");
-// Our send button now has an explicit id="sendBtn" above.
-const sendBtn=document.getElementById("sendBtn");
-const thinking=document.getElementById("thinking");
-const history=[];
+    const chat = document.getElementById("chat");
+    const chatForm = document.getElementById("chatForm");
+    const input = document.getElementById("msg");
+    const sendBtn = document.getElementById("sendBtn");
+    const uploadInput = document.getElementById("files");
+    const uploadNote = document.getElementById("uploadNote");
+    const settingsBtn = document.getElementById("settingsBtn");
+    const settingsPanel = document.getElementById("settingsPanel");
+    const tokenInput = document.getElementById("tokenInput");
+    const saveToken = document.getElementById("saveToken");
+    const tokenStatusDot = document.getElementById("token-status-dot");
+    const tokenStatusText = document.getElementById("token-status-text");
+    const persistToggle = document.getElementById("persistToggle");
+    const privacyToggle = document.getElementById("privacyToggle");
+    const exportTxt = document.getElementById("exportTxt");
+    const exportJson = document.getElementById("exportJson");
+    const clearSession = document.getElementById("clearSession");
+    const saveServer = document.getElementById("saveServer");
+    const searchToggle = document.getElementById("searchToggle");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const thinking = document.getElementById("thinking");
+    const history = [];
+    const attachmentsPreview = [];
+    const STORAGE_KEY = "lyr-conversation";
+    const SETTINGS_KEY = "lyr-settings";
 
-// === Upload załączników ===
-document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.currentTarget;
-  const fd   = new FormData(form);
-  const inp  = form.querySelector('input[name="files"]');
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        allowPersist = !!parsed.allowPersist;
+        privacyOn = !!parsed.privacyOn;
+      } catch { }
+      if (persistToggle) persistToggle.checked = allowPersist;
+      if (privacyToggle) {
+        privacyToggle.checked = privacyOn;
+        document.body.classList.toggle("privacy-on", privacyOn);
+      }
+    }
 
-  if (!inp.files || inp.files.length === 0) { alert('Wybierz plik.'); return; }
+    function saveSettings() {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ allowPersist, privacyOn }));
+      } catch { }
+    }
 
-  try {
-    const res  = await fetch('/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    console.log('UPLOAD RES', data);
+    function loadConversation() {
+      if (!allowPersist) return;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const items = JSON.parse(raw);
+        items.forEach(m => {
+          const d = addMsg(m.role === "assistant" ? "lyr" : "user", m.content || "", m.attachments || []);
+          d.querySelector(".time").textContent = m.time || nowTime();
+        });
+        autoScroll(true);
+      } catch { }
+    }
 
-    if (!data.ok) { alert('❌ Błąd uploadu'); return; }
-    alert('✅ Wysłano: ' + (data.files||[]).map(x=>x.name).join(', '));
-    form.reset();
-  } catch (err) {
-    alert('❌ ' + err.message);
-  }
-});
+    function saveConversation() {
+      if (!allowPersist) return;
+      try {
+        const out = Array.from(chat.querySelectorAll(".msg")).map(div => {
+          const text = div.querySelector(".text")?.textContent || "";
+          const time = div.querySelector(".time")?.textContent || "";
+          const role = div.classList.contains("lyr") ? "assistant" : "user";
+          let attachments = [];
+          try { attachments = JSON.parse(div.dataset.attachments || "[]"); } catch { attachments = []; }
+          return { role, content: text, time, timestampISO: new Date().toISOString(), attachments };
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
+      } catch { }
+    }
 
-function addMsg(cls,text){
-  const d=document.createElement("div");
-  d.className="msg "+cls;
-  d.textContent=text;
-  chat.appendChild(d);
-  chat.scrollTop=chat.scrollHeight;
-  return d; // zwracamy bąbelek (do ewentualnej podmiany)
-}
+    let apiToken = localStorage.getItem("atlasToken") || "";
+    let allowPersist = false;
+    let privacyOn = false;
+    const defaultPlaceholder = tokenInput.placeholder;
+    function updateTokenInfo() {
+      tokenInput.value = "";
+      tokenInput.placeholder = apiToken ? "Token zapisany (ukryty)" : defaultPlaceholder;
+      if (tokenStatusDot) {
+        tokenStatusDot.classList.remove("token-ok", "token-missing");
+        tokenStatusDot.classList.add(apiToken ? "token-ok" : "token-missing");
+        tokenStatusDot.title = apiToken ? "Token zapisany" : "Token brak";
+      }
+      if (tokenStatusText) {
+        tokenStatusText.textContent = apiToken ? "token zapisany" : "token brak";
+      }
+      const tokenStatusLabel = document.getElementById("tokenInlineStatus");
+      if (tokenStatusLabel) {
+        tokenStatusLabel.title = apiToken ? "Token zapisany" : "Token brak";
+      }
+    }
+    loadSettings();
+    updateTokenInfo();
+    loadConversation();
+    saveToken.onclick = () => {
+      apiToken = tokenInput.value.trim();
+      localStorage.setItem("atlasToken", apiToken);
+      updateTokenInfo();
+    };
+    function authHeaders(base = {}) {
+      if (apiToken) base["x-api-token"] = apiToken;
+      return base;
+    }
 
-function setThinking(on){
-  if(on){thinking.classList.add("show"); sendBtn.disabled=true; input.disabled=true;}
-  else {thinking.classList.remove("show"); sendBtn.disabled=false; input.disabled=false; input.focus();}
-}
+    function nowTime() {
+      return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    }
 
-function setStatus(mode){
-  const dot  = document.getElementById('status-dot');
-  const text = document.getElementById('status-text');
-  if(!dot || !text) return;
-  dot.classList.remove('online','typing','offline');
-  if(mode === 'typing'){ dot.classList.add('typing');  text.textContent = 'piszę…'; }
-  else if(mode === 'offline'){ dot.classList.add('offline'); text.textContent = 'offline'; }
-  else { dot.classList.add('online'); text.textContent = 'online'; }
-}
+    function addMsg(cls, text, attachments = []) {
+      const d = document.createElement("div");
+      d.className = "msg " + cls;
+      const span = document.createElement("div");
+      span.className = "text";
+      span.textContent = text;
+      const time = document.createElement("div");
+      time.className = "time";
+      time.textContent = nowTime();
+      d.appendChild(span);
+      if (attachments && attachments.length) {
+        const attRow = document.createElement("div");
+        attRow.style.display = "flex";
+        attRow.style.flexWrap = "wrap";
+        attRow.style.gap = "6px";
+        attRow.style.marginTop = "2px";
+        attachments.forEach(att => {
+          const chip = document.createElement("span");
+          chip.style.fontSize = "11px";
+          chip.style.padding = "4px 6px";
+          chip.style.borderRadius = "8px";
+          chip.style.border = "1px solid #2a3650";
+          chip.style.background = "#0f1520";
+          chip.textContent = att.name || "plik";
+          attRow.appendChild(chip);
+        });
+        d.appendChild(attRow);
+        d.dataset.attachments = JSON.stringify(attachments.map(a => ({ name: a.name, type: a.mime || a.type, size: a.size })));
+      } else {
+        d.dataset.attachments = "[]";
+      }
+      d.appendChild(time);
+      chat.appendChild(d);
+      autoScroll();
+      return d; // zwracamy bąbelek (do ewentualnej podmiany)
+    }
 
-form.addEventListener("submit",async e=>{
-  e.preventDefault();
-  const text=input.value.trim();
-  if(!text) return;
+    function setThinking(on) {
+      if (on) {
+        if (thinking) thinking.classList.add("show");
+        sendBtn.disabled = true;
+        input.disabled = true;
+      } else {
+        if (thinking) thinking.classList.remove("show");
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    }
 
-  // pokaż wiadomość użytkownika
-  addMsg("user",text);
-  input.value="";
+    function setStatus(mode) {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      if (!dot || !text) return;
+      dot.classList.remove('online', 'typing', 'offline');
+      if (mode === 'typing') { dot.classList.add('typing'); text.textContent = 'piszę…'; }
+      else if (mode === 'offline') { dot.classList.add('offline'); text.textContent = 'offline'; }
+      else { dot.classList.add('online'); text.textContent = 'online'; }
+    }
 
-  // włącz „myślę…”
-  setThinking(true);
-  let placeholder;
-  try{
-    // opcjonalny placeholder odpowiedzi (zamienimy go po otrzymaniu odpowiedzi)
-    placeholder = addMsg("lyr","…");
-    setStatus('typing'); // ← status „piszę…” PRZED wywołaniem fetch
-    const res = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, history })
+    function setProgress(name, value) {
+      const item = Array.from(document.querySelectorAll(".preview-item")).find(el => el.dataset.barId === name);
+      const bar = item?.querySelector(".progress span");
+      if (bar) bar.style.width = `${Math.min(100, Math.max(0, value))}%`;
+    }
+
+    function setBubbleText(bubble, value) {
+      const t = bubble?.querySelector?.(".text");
+      if (t) t.textContent = value;
+      else if (bubble) bubble.textContent = value;
+    }
+
+    async function sendToLyr(text, attachments = []) {
+      const displayLabel = attachments.length
+        ? `${text || "Wiadomość z załącznikiem"} 📎`
+        : text;
+      if (!displayLabel) return;
+
+      addMsg("user", displayLabel, attachments);
+      saveConversation();
+
+      setThinking(true);
+      let placeholder;
+      try {
+        placeholder = addMsg("lyr", "…");
+        setStatus('typing'); // ← status „piszę…” PRZED wywołaniem fetch
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ message: text, history, attachments, useSearch: searchToggle?.checked })
+        });
+
+        const data = await res.json();
+        if (data.reply) {
+          const note = attachments.length
+            ? (text ? `${text}\n[załączniki: ${attachments.map(f => f.name || f.url).join(", ")}]` : `[załączniki: ${attachments.map(f => f.name || f.url).join(", ")}]`)
+            : text;
+          history.push({ role: "user", content: note || "(bez treści)" });
+          history.push({ role: "assistant", content: data.reply });
+          setBubbleText(placeholder, data.reply);
+          saveConversation();
+        } else {
+          setBubbleText(placeholder, "…cisza. Sprawdź klucz w pliku .env");
+        }
+      } catch (err) {
+        setStatus('offline');
+        if (placeholder) {
+          setBubbleText(placeholder, "⚠️ Błąd połączenia (czy serwer działa: node server.js?).");
+        } else {
+          addMsg("lyr", "⚠️ Błąd połączenia (czy serwer działa: node server.js?).");
+        }
+      } finally {
+        setStatus('online');
+        // wyłącz „myślę…”
+        setThinking(false);
+      }
+    }
+
+    input.addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" || e.keyCode === 13) && !e.shiftKey) {
+        e.preventDefault();
+        chatForm.requestSubmit();
+      }
     });
 
-    const data=await res.json();
-    if(data.reply){
-      history.push({role:"user",content:text});
-      history.push({role:"assistant",content:data.reply});
-      placeholder.textContent=data.reply;
-    }else{
-      placeholder.textContent="…cisza. Sprawdź klucz w pliku .env";
+    chatForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      const text = input.value.trim();
+      const filesSelected = uploadInput.files && uploadInput.files.length > 0;
+      if (!text && !filesSelected) return;
+
+      if (text.startsWith("/")) {
+        if (handleSlashCommand(text)) {
+          input.value = "";
+          uploadInput.value = "";
+          renderPreviews([]);
+          return;
+        }
+      }
+
+      const filesArr = Array.from(uploadInput.files || []);
+      const bad = filesArr.find(f => f.size > 15 * 1024 * 1024);
+      if (bad) { alert(`Plik ${bad.name} przekracza limit 15MB`); return; }
+
+      sendBtn.disabled = true;
+      let uploaded = [];
+      try {
+        if (filesSelected) {
+          const fd = new FormData();
+          const safeFiles = [];
+          for (const file of uploadInput.files) {
+            const cleaned = await reencodeImage(file);
+            const safeName = sanitizeName(cleaned.name);
+            const safeFile = new File([cleaned], safeName, { type: cleaned.type });
+            fd.append('files', safeFile);
+            setProgress(safeName, 15);
+            safeFiles.push(safeFile);
+          }
+          const res = await fetch('/upload', { method: 'POST', headers: authHeaders(), body: fd });
+          const data = await res.json();
+          if (!data.ok) { alert('❌ ' + (data.message || 'Błąd uploadu')); sendBtn.disabled=false; return; }
+          uploaded = data.files || [];
+          uploaded.forEach(f => setProgress(f.name, 100));
+          if (data.conversion && data.conversion.ran) {
+            const t = (typeof data.conversion.duration_ms === "number") ? `${data.conversion.duration_ms} ms` : "";
+            const ts = data.conversion.timestamp ? ` o ${data.conversion.timestamp}` : "";
+            const names = (data.conversion.files || []).join(", ");
+            addMsg("lyr", `Konwersja zakończona: przeniesiono do docx_txt (${names || "plik"}). Czas ${t}${ts}`);
+          }
+        }
+        input.value = "";
+        uploadInput.value = "";
+        uploadNote.textContent = "Brak pliku";
+        if (previewRow) previewRow.innerHTML = "";
+        await sendToLyr(text || "Odczytaj proszę załącznik / obraz.", uploaded);
+      } catch (err) {
+        alert('❌ ' + err.message);
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+
+    // === Upload załączników ===
+    const previewRow = document.getElementById("previewRow");
+
+    function renderPreviews(files) {
+      if (!previewRow) return;
+      previewRow.innerHTML = "";
+      const list = Array.from(files || []);
+      uploadNote.textContent = list.length ? list.map(f => f.name).join(", ") : "Brak pliku";
+      list.forEach(file => {
+        const item = document.createElement("div");
+        item.className = "preview-item";
+        if (/image\/(png|jpe?g|gif)/i.test(file.type)) {
+          const img = document.createElement("img");
+          img.alt = file.name;
+          const reader = new FileReader();
+          reader.onload = e => img.src = e.target.result;
+          reader.readAsDataURL(file);
+          item.appendChild(img);
+        }
+        const name = document.createElement("span");
+        name.textContent = file.name;
+        item.appendChild(name);
+        const progress = document.createElement("div");
+        progress.className = "progress";
+        const bar = document.createElement("span");
+        progress.appendChild(bar);
+        item.appendChild(progress);
+        item.dataset.barId = file.name;
+        previewRow.appendChild(item);
+      });
     }
-  }catch(err){
-    setStatus('offline');
-    if (placeholder) {
-      placeholder.textContent = "⚠️ Błąd połączenia (czy serwer działa: node server.js?).";
-    } else {
-      addMsg("lyr","⚠️ Błąd połączenia (czy serwer działa: node server.js?).");
+
+    uploadInput.addEventListener("change", () => {
+      renderPreviews(uploadInput.files);
+    });
+
+    function sanitizeName(name = "") {
+      return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(-100) || "plik";
     }
-  }finally{
-    setStatus('online');
-      // wyłącz „myślę…”
-      setThinking(false);
+
+    function reencodeImage(file) {
+      return new Promise(resolve => {
+        if (!/^image\/(png|jpe?g|gif)$/i.test(file.type)) return resolve(file);
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob(blob => {
+              if (!blob) return resolve(file);
+              const cleanName = sanitizeName(file.name.replace(/\.[^.]+$/, "") || "image") + ".png";
+              resolve(new File([blob], cleanName, { type: "image/png" }));
+            }, "image/png", 0.92);
+          };
+          img.onerror = () => resolve(file);
+          img.src = ev.target.result;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+      });
     }
-});
-</script>
+
+    persistToggle?.addEventListener("change", () => {
+      allowPersist = persistToggle.checked;
+      saveSettings();
+    });
+
+    privacyToggle?.addEventListener("change", () => {
+      privacyOn = privacyToggle.checked;
+      document.body.classList.toggle("privacy-on", privacyOn);
+      saveSettings();
+    });
+
+    settingsBtn?.addEventListener("click", () => {
+      if (!settingsPanel) return;
+      settingsPanel.style.display = settingsPanel.style.display === "flex" ? "none" : "flex";
+    });
+
+    // Drag & drop na obszar czatu
+    chat.addEventListener("dragenter", e => { e.preventDefault(); chat.classList.add("dropzone-active"); });
+    chat.addEventListener("dragover", e => { e.preventDefault(); });
+    chat.addEventListener("dragleave", e => { e.preventDefault(); chat.classList.remove("dropzone-active"); });
+    chat.addEventListener("drop", e => {
+      e.preventDefault();
+      chat.classList.remove("dropzone-active");
+      const items = e.dataTransfer?.files;
+      if (!items || !items.length) return;
+      const dt = new DataTransfer();
+      for (const file of items) dt.items.add(file);
+      uploadInput.files = dt.files;
+      const list = Array.from(uploadInput.files || []).map(f => f.name).filter(Boolean);
+      uploadNote.textContent = list.length ? list.join(", ") : "Brak pliku";
+      renderPreviews(uploadInput.files);
+    });
+
+    exportTxt?.addEventListener("click", () => {
+      const lines = Array.from(chat.querySelectorAll(".msg")).map(div => {
+        const text = div.querySelector(".text")?.textContent || "";
+        const time = div.querySelector(".time")?.textContent || nowTime();
+        const role = div.classList.contains("lyr") ? "Lyr" : "Ty";
+        return `[${time}] ${role}: ${text}`;
+      }).join("\n");
+      const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+      const name = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + "_rozmowa.txt";
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    exportJson?.addEventListener("click", () => {
+      const items = Array.from(chat.querySelectorAll(".msg")).map(div => {
+        const text = div.querySelector(".text")?.textContent || "";
+        const time = div.querySelector(".time")?.textContent || nowTime();
+        const role = div.classList.contains("lyr") ? "assistant" : "user";
+        let attachments = [];
+        try { attachments = JSON.parse(div.dataset.attachments || "[]"); } catch { attachments = []; }
+        return { timestampISO: new Date().toISOString(), time, role, content: text, attachments };
+      });
+      const blob = new Blob([JSON.stringify(items, null, 2)], { type: "application/json" });
+      const name = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + "_rozmowa.json";
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    clearSession?.addEventListener("click", () => {
+      if (!confirm("Wyczyścić bieżącą sesję?")) return;
+      chat.innerHTML = "";
+      localStorage.removeItem(STORAGE_KEY);
+      if (previewRow) previewRow.innerHTML = "";
+    });
+
+    logoutBtn?.addEventListener("click", async () => {
+      try {
+        await fetch("/shutdown", { method: "POST", headers: authHeaders({ "Content-Type": "application/json" }) });
+      } catch {}
+      window.close();
+    });
+
+    function collectConversation() {
+      return Array.from(chat.querySelectorAll(".msg")).map(div => {
+        const text = div.querySelector(".text")?.textContent || "";
+        const time = div.querySelector(".time")?.textContent || nowTime();
+        const role = div.classList.contains("lyr") ? "assistant" : "user";
+        let attachments = [];
+        try { attachments = JSON.parse(div.dataset.attachments || "[]"); } catch { attachments = []; }
+        return { role, content: text, time, attachments };
+      });
+    }
+
+    saveServer?.addEventListener("click", async () => {
+      const items = collectConversation();
+      if (!items.length) { alert("Brak rozmowy do zapisania."); return; }
+      try {
+        const res = await fetch("/save-conversation", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ items })
+        });
+        const data = await res.json();
+        if (!data.ok) { alert("❌ " + (data.message || "Błąd zapisu na serwerze")); return; }
+        alert("✅ Zapisano w folderze notes: " + data.file);
+      } catch (e) {
+        alert("❌ " + e.message);
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      if ((isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        alert("Panel komend: /scan /img /diff /cisza (podpowiedź)");
+      }
+    });
+  </script>
 </body>
+
 </html>
