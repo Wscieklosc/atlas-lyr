@@ -285,6 +285,13 @@
       background: #0f1520;
     }
 
+    .upload-help {
+      margin-top: 6px;
+      color: #7f92aa;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     .upload-row button {
       padding: 6px 10px;
       height: 30px;
@@ -515,9 +522,13 @@
       </div>
       <div class="upload-row">
         <label for="files" class="upload-label" aria-label="Dodaj załącznik" role="button">Załącznik</label>
-        <span id="uploadNote" class="upload-note">Brak pliku</span>
+        <span id="uploadNote" class="upload-note">Brak pliku (JPG/PNG/GIF/PDF/DOCX/TXT, max 15MB)</span>
         <input id="files" type="file" name="files" multiple aria-label="Wybierz pliki">
         <button type="button" id="settingsBtn" aria-label="Otwórz ustawienia" role="button">Ustawienia</button>
+      </div>
+      <div class="upload-help">
+        Dodaj pliki, żeby Lyr mógł je przeczytać (obrazy JPG/PNG/GIF, dokumenty PDF/DOCX/TXT, 15MB).
+        Jeśli pytasz o obraz, upewnij się, że dołączasz go jako załącznik.
       </div>
       <div class="controls-row">
         <label class="switch">
@@ -553,12 +564,21 @@
 </div>
 
 <script>
-    function autoScroll(force = false) {
-      const threshold = 100;
+    const SCROLL_THRESHOLD = 120;
+    let userAnchoredToBottom = true;
+
+    function isNearBottom() {
       const distance = chat.scrollHeight - (chat.scrollTop + chat.clientHeight);
-      if (force || distance < threshold) {
+      return distance < SCROLL_THRESHOLD;
+    }
+
+    function autoScroll(force = false) {
+      const shouldStick = force || userAnchoredToBottom || isNearBottom();
+      if (shouldStick) {
         chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+        userAnchoredToBottom = true;
       }
+      return shouldStick;
     }
 
     function handleSlashCommand(text) {
@@ -583,6 +603,7 @@
     const sendBtn = document.getElementById("sendBtn");
     const uploadInput = document.getElementById("files");
     const uploadNote = document.getElementById("uploadNote");
+    const uploadNoteDefault = "Brak pliku (JPG/PNG/GIF/PDF/DOCX/TXT, max 15MB)";
     const settingsBtn = document.getElementById("settingsBtn");
     const settingsPanel = document.getElementById("settingsPanel");
     const tokenInput = document.getElementById("tokenInput");
@@ -602,6 +623,10 @@
     const attachmentsPreview = [];
     const STORAGE_KEY = "lyr-conversation";
     const SETTINGS_KEY = "lyr-settings";
+
+    chat.addEventListener("scroll", () => {
+      userAnchoredToBottom = isNearBottom();
+    });
 
     function loadSettings() {
       try {
@@ -760,6 +785,8 @@
       const t = bubble?.querySelector?.(".text");
       if (t) t.textContent = value;
       else if (bubble) bubble.textContent = value;
+      // Przewijamy tylko, gdy użytkownik jest przy końcu rozmowy; bez narzucania scrolla podczas czytania starszych wiadomości.
+      autoScroll();
     }
 
     async function sendToLyr(text, attachments = []) {
@@ -783,6 +810,11 @@
         });
 
         const data = await res.json();
+        if (!res.ok) {
+          const msg = data?.message || "Błąd serwera (załączniki / chat).";
+          setBubbleText(placeholder, `⚠️ ${msg}`);
+          return;
+        }
         if (data.reply) {
           const note = attachments.length
             ? (text ? `${text}\n[załączniki: ${attachments.map(f => f.name || f.url).join(", ")}]` : `[załączniki: ${attachments.map(f => f.name || f.url).join(", ")}]`)
@@ -830,6 +862,11 @@
         }
       }
 
+      if (!filesSelected && /\b(jpe?g|png|gif|obraz|zdję|foto|screen|screenshot)\b/i.test(text)) {
+        alert("Dodaj obraz jako załącznik (JPG/PNG/GIF), żeby Lyr mógł go przeczytać.");
+        return;
+      }
+
       const filesArr = Array.from(uploadInput.files || []);
       const bad = filesArr.find(f => f.size > 15 * 1024 * 1024);
       if (bad) { alert(`Plik ${bad.name} przekracza limit 15MB`); return; }
@@ -862,7 +899,7 @@
         }
         input.value = "";
         uploadInput.value = "";
-        uploadNote.textContent = "Brak pliku";
+        uploadNote.textContent = uploadNoteDefault;
         if (previewRow) previewRow.innerHTML = "";
         await sendToLyr(text || "Odczytaj proszę załącznik / obraz.", uploaded);
       } catch (err) {
@@ -879,7 +916,7 @@
       if (!previewRow) return;
       previewRow.innerHTML = "";
       const list = Array.from(files || []);
-      uploadNote.textContent = list.length ? list.map(f => f.name).join(", ") : "Brak pliku";
+      uploadNote.textContent = list.length ? list.map(f => f.name).join(", ") : uploadNoteDefault;
       list.forEach(file => {
         const item = document.createElement("div");
         item.className = "preview-item";
@@ -967,7 +1004,7 @@
       for (const file of items) dt.items.add(file);
       uploadInput.files = dt.files;
       const list = Array.from(uploadInput.files || []).map(f => f.name).filter(Boolean);
-      uploadNote.textContent = list.length ? list.join(", ") : "Brak pliku";
+      uploadNote.textContent = list.length ? list.join(", ") : uploadNoteDefault;
       renderPreviews(uploadInput.files);
     });
 

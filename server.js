@@ -56,6 +56,8 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Default model used when no MODEL environment variable is provided.
 // Use GPT‑4o by default instead of the non-existent "gpt-5" model.
 const MODEL = process.env.MODEL || "gpt-4o";
+// Vision-capable model (używany automatycznie, gdy są obrazy w załącznikach).
+const VISION_MODEL = process.env.VISION_MODEL || "gpt-4o";
 
 const __dirnameResolved = path.resolve();
 const UPLOAD_DIR = path.join(__dirnameResolved, "uploads");
@@ -325,12 +327,25 @@ app.post("/chat", requireToken, limiter, async (req, res) => {
 
     const imageParts = [];
     const attachmentNotes = [];
+    const failedImages = [];
     for (const att of attachments) {
-      const loaded = loadImageAttachment(att);
-      if (loaded) {
-        imageParts.push(loaded.part);
-        attachmentNotes.push(loaded.label);
+      const looksLikeImage = /^image\//i.test(att?.mime || "") || /\.(png|jpe?g|gif|webp)$/i.test(att?.url || att?.name || "");
+      if (looksLikeImage) {
+        const loaded = loadImageAttachment(att);
+        if (loaded) {
+          imageParts.push(loaded.part);
+          attachmentNotes.push(loaded.label);
+        } else {
+          failedImages.push(att?.name || att?.url || "nieznany_plik");
+        }
       }
+    }
+
+    if (failedImages.length && !imageParts.length) {
+      return res.status(400).json({
+        ok: false,
+        message: `Nie udało się wczytać obrazów: ${failedImages.join(", ")}. Spróbuj dodać ponownie.`
+      });
     }
 
     const userContent = imageParts.length
@@ -385,7 +400,16 @@ app.post("/chat", requireToken, limiter, async (req, res) => {
       }
     }
 
-    const completion = await client.chat.completions.create({ model: MODEL, messages });
+    if (imageParts.length) {
+      messages.splice(1, 0, {
+        role: "system",
+        content: `Użytkownik dołączył obrazy (${attachmentNotes.join(", ")}). Masz dostęp do obrazów — oglądaj je i opisuj, odpowiadaj na podstawie zawartości. Nie odmawiaj opisu.`
+      });
+    }
+
+    const modelToUse = imageParts.length ? VISION_MODEL : MODEL;
+
+    const completion = await client.chat.completions.create({ model: modelToUse, messages });
     const reply = completion.choices?.[0]?.message?.content?.trim() || "";
 
     const memNote = attachmentNotes.length
