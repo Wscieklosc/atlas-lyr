@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "sh -c 'node server.js & pid=$!; sleep 1; xdg-open http://localhost:3000 >/dev/null 2>&1 || true; wait $pid'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",

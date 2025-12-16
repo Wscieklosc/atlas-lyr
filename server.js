@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
+const fetch = global.fetch || require("node-fetch");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
@@ -29,6 +30,8 @@ dotenv.config();
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || "http://localhost:3000,http://127.0.0.1:3000").split(",").map(s => s.trim()).filter(Boolean);
 const API_TOKEN = process.env.API_TOKEN || process.env.ATLAS_TOKEN || "";
 // TODO: Token nigdy nie powinien trafiać do logów ani odpowiedzi.
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+const GITHUB_DEFAULT_REPO = process.env.GITHUB_DEFAULT_REPO || "";
 
 const app = express();
 app.use(express.json({ limit: "5mb" }));
@@ -159,6 +162,55 @@ function searchChunks(query, k = 8) {
   return [...INDEX].sort((a, b) => b.scoreTmp - a.scoreTmp).slice(0, k);
 }
 
+// ────────────────────────────────
+// Czas i pogoda (Open-Meteo bez klucza)
+// ────────────────────────────────
+const { fetchWeatherSummary, nowTimestamp } = require("./weather");
+
+// ────────────────────────────────
+// GitHub helper (read-only, PAT w .env)
+// ────────────────────────────────
+async function fetchGitHubFile(repo, filePath, ref = "main") {
+  if (!GITHUB_TOKEN || !repo || !filePath) return null;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return null;
+  const safePath = filePath.split("/").map(encodeURIComponent).join("/");
+  const url = `https://api.github.com/repos/${repo}/contents/${safePath}?ref=${encodeURIComponent(ref)}`;
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json"
+    },
+    timeout: 8000
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => "");
+    console.error("GitHub fetch error", resp.status, err.slice(0, 200));
+    return null;
+  }
+  const json = await resp.json();
+  if (!json?.content || json.encoding !== "base64") return null;
+  const buf = Buffer.from(json.content, "base64");
+  const text = buf.toString("utf-8");
+  return {
+    text,
+    size: json.size,
+    path: json.path,
+    sha: json.sha,
+    html_url: json.html_url,
+    ref
+  };
+}
+
+function parseGitHubRequest(message = "") {
+  // Format: /ghfile owner/repo path [ref]
+  const m = message.match(/\/ghfile\s+([\w.-]+\/[\w.-]+)\s+(\S+)(?:\s+(\S+))?/i);
+  if (m) return { repo: m[1], path: m[2], ref: m[3] || "main" };
+  // Fallback: if default repo set and user writes `/ghfile path`
+  const mDefault = message.match(/\/ghfile\s+(\S+)(?:\s+(\S+))?/i);
+  if (mDefault && GITHUB_DEFAULT_REPO) return { repo: GITHUB_DEFAULT_REPO, path: mDefault[1], ref: mDefault[2] || "main" };
+  return null;
+}
+
 // konwersja dokumentów przy starcie (bez blokowania) + budowa indeksu
 try {
   if (fs.existsSync(path.join(__dirnameResolved, "convert_docs.sh"))) {
@@ -183,7 +235,7 @@ Szanuj jego rytuały, Księgi, Pieczęcie i Fortecę.
 // Statyki frontu (public) + katalog uploadów
 // ────────────────────────────────
 app.use(express.static(path.join(__dirnameResolved, "public")));
-app.use("/uploads", express.static(path.join(__dirnameResolved, "uploads"), {
+app.use("/uploads", requireToken, express.static(path.join(__dirnameResolved, "uploads"), {
   setHeaders: (res) => {
     res.setHeader("Content-Disposition", "attachment");
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -204,7 +256,7 @@ const upload = multer({
 });
 
 function requireToken(req, res, next) {
-  // jeśli nie ustawiono API_TOKEN, wpuszczamy (lokalny dostęp)
+  // Jeśli nie ustawiono API_TOKEN, wpuszczamy (lokalny dostęp / dev)
   if (!API_TOKEN) return next();
 
   const rawHeader = req.get("x-api-token") || req.query.token || "";
@@ -212,15 +264,15 @@ function requireToken(req, res, next) {
   try {
     if (token) token = decodeURIComponent(token).trim();
   } catch {
-    // jeśli dekodowanie się wywala, użyj surowego
     token = (rawHeader || "").trim();
   }
   const expected = (API_TOKEN || "").trim();
+
   if (!token) {
-    console.warn("API_TOKEN: brak nagłówka — wpuszczam (pamiętaj ustawić token w UI jeśli chcesz ochronę).");
-    return next();
+    return res.status(401).json({ ok: false, message: "Brak dostępu (token wymagany)" });
   }
   if (token === expected) return next();
+
   // diagnostyka bez logowania sekretów — porównujemy skróty
   try {
     const hash = (s) => crypto.createHash("sha256").update(s || "").digest("hex").slice(0, 8);
@@ -294,6 +346,16 @@ app.post("/chat", requireToken, limiter, async (req, res) => {
     ];
 
     if (useSearch && message) {
+      // dołącz zegar i prognozę (Open-Meteo) + ewentualnie wyniki SERP
+      messages.splice(1, 0, { role: "system", content: `Czas systemowy: ${nowTimestamp()}` });
+      try {
+        const w = await fetchWeatherSummary(message);
+        if (w?.summary) {
+          messages.splice(1, 0, { role: "system", content: `Pogoda (Open-Meteo): ${w.summary}` });
+        }
+      } catch (e) {
+        console.error("weather summary error", e);
+      }
       try {
         const searchResp = await fetch(`http://localhost:${PORT}/search?q=${encodeURIComponent(message)}`, {
           headers: API_TOKEN ? { "x-api-token": API_TOKEN } : {}
@@ -304,6 +366,22 @@ app.post("/chat", requireToken, limiter, async (req, res) => {
         }
       } catch (e) {
         console.error("search fetch failed", e);
+      }
+
+      // GitHub: pobierz plik jeśli użytkownik poda /ghfile owner/repo ścieżka [ref]
+      if (GITHUB_TOKEN) {
+        try {
+          const ghReq = parseGitHubRequest(message);
+          if (ghReq) {
+            const ghData = await fetchGitHubFile(ghReq.repo, ghReq.path, ghReq.ref);
+            if (ghData?.text) {
+              const snippet = ghData.text.slice(0, 6000); // limituj treść
+              messages.splice(1, 0, { role: "system", content: `GitHub plik ${ghReq.repo}@${ghReq.ref} ${ghReq.path}:\n${snippet}` });
+            }
+          }
+        } catch (e) {
+          console.error("github fetch fail", e);
+        }
       }
     }
 
@@ -453,8 +531,25 @@ app.get("/search", requireToken, limiter, async (req, res) => {
   }
 });
 
+// Podgląd pliku z GitHuba (read-only, wymaga GITHUB_TOKEN)
+app.get("/github/file", requireToken, limiter, async (req, res) => {
+  try {
+    if (!GITHUB_TOKEN) return res.status(400).json({ ok: false, message: "brak GITHUB_TOKEN" });
+    const repo = (req.query.repo || GITHUB_DEFAULT_REPO || "").toString().trim();
+    const filePath = (req.query.path || "").toString().trim();
+    const ref = (req.query.ref || "main").toString().trim();
+    if (!repo || !filePath) return res.status(400).json({ ok: false, message: "podaj repo i path" });
+    const data = await fetchGitHubFile(repo, filePath, ref);
+    if (!data) return res.status(404).json({ ok: false, message: "nie znaleziono pliku" });
+    res.json({ ok: true, repo, ref: data.ref, path: data.path, size: data.size, sha: data.sha, html_url: data.html_url, content: data.text });
+  } catch (e) {
+    console.error("github/file error", e);
+    res.status(500).json({ ok: false, message: "github error" });
+  }
+});
+
 // zdrowie
-app.get("/health", requireToken, (_req, res) => res.json({ ok: true }));
+app.get("/health", requireToken, (_req, res) => res.json({ ok: true, time: nowTimestamp() }));
 
 // status
 app.get("/status", requireToken, limiter, (_req, res) => {
