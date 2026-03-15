@@ -677,7 +677,8 @@
       } catch { }
     }
 
-    let apiToken = localStorage.getItem("atlasToken") || "";
+    let apiToken = sessionStorage.getItem("atlasToken") || "";
+    try { localStorage.removeItem("atlasToken"); } catch {}
     let allowPersist = false;
     let privacyOn = false;
     const defaultPlaceholder = tokenInput.placeholder;
@@ -702,7 +703,7 @@
     loadConversation();
     saveToken.onclick = () => {
       apiToken = tokenInput.value.trim();
-      localStorage.setItem("atlasToken", apiToken);
+      sessionStorage.setItem("atlasToken", apiToken);
       updateTokenInfo();
     };
     function authHeaders(base = {}) {

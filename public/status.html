@@ -106,7 +106,7 @@
     <div class="card">
       <h2>Autoryzacja (opcjonalna)</h2>
       <div class="auth">
-        <input id="tokenInput" placeholder="Token API (x-api-token)" autocomplete="off" />
+        <input id="tokenInput" type="password" placeholder="Token API (x-api-token)" autocomplete="off" />
         <button id="saveToken">Zapisz token</button>
         <small id="tokenInfo">token pusty</small>
       </div>
@@ -151,7 +151,8 @@
     const saveToken = document.getElementById("saveToken");
     const tokenInfo = document.getElementById("tokenInfo");
 
-    let apiToken = localStorage.getItem("atlasToken") || "";
+    let apiToken = sessionStorage.getItem("atlasToken") || "";
+    try { localStorage.removeItem("atlasToken"); } catch {}
     tokenInput.value = apiToken;
     function updateTokenInfo() {
       tokenInfo.textContent = apiToken ? "token ustawiony" : "token pusty";
@@ -159,7 +160,7 @@
     updateTokenInfo();
     saveToken.onclick = () => {
       apiToken = tokenInput.value.trim();
-      localStorage.setItem("atlasToken", apiToken);
+      sessionStorage.setItem("atlasToken", apiToken);
       updateTokenInfo();
     };
     function authHeaders(base = {}) {

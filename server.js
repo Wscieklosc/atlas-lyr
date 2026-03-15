@@ -67,7 +67,7 @@ const MODEL = process.env.MODEL || "gpt-4o";
 // Vision-capable model (używany automatycznie, gdy są obrazy w załącznikach).
 const VISION_MODEL = process.env.VISION_MODEL || "gpt-4o";
 
-const __dirnameResolved = path.resolve();
+const __dirnameResolved = __dirname;
 const UPLOAD_DIR = path.join(__dirnameResolved, "uploads");
 const NOTES_DIR = path.join(__dirnameResolved, "notes");
 const META_DIR = path.join(__dirnameResolved, "meta");
