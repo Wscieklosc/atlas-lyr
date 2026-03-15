@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
+const exifr = require("exifr");
 const fetch = global.fetch || require("node-fetch");
 const path = require("path");
 const fs = require("fs");
@@ -335,6 +336,65 @@ function loadImageAttachment(att = {}) {
   }
 }
 
+async function readImageMetadata(file = {}) {
+  const meta = {
+    file_name: sanitizeName(file.originalname || path.basename(file.path || "")),
+    mime: file.mimetype || guessMime(file.path || ""),
+    size_bytes: Number.isFinite(file.size) ? file.size : null,
+    width_px: null,
+    height_px: null,
+    exif_timestamp: null,
+    device_model: null,
+    orientation: null,
+    gps: null
+  };
+  if (!file.path || !/^image\//i.test(meta.mime || "")) return meta;
+  try {
+    const exif = await exifr.parse(file.path, {
+      tiff: true,
+      ifd0: true,
+      exif: true,
+      gps: true
+    });
+    const width = exif?.ExifImageWidth || exif?.ImageWidth || exif?.PixelXDimension || null;
+    const height = exif?.ExifImageHeight || exif?.ImageLength || exif?.PixelYDimension || null;
+    const make = (exif?.Make || "").trim();
+    const model = (exif?.Model || "").trim();
+    const when = exif?.DateTimeOriginal || exif?.CreateDate || null;
+    const latitude = Number.isFinite(exif?.latitude) ? exif.latitude : null;
+    const longitude = Number.isFinite(exif?.longitude) ? exif.longitude : null;
+    meta.width_px = Number.isFinite(width) ? width : null;
+    meta.height_px = Number.isFinite(height) ? height : null;
+    meta.exif_timestamp = when instanceof Date ? when.toISOString() : (typeof when === "string" ? when : null);
+    meta.device_model = [make, model].filter(Boolean).join(" ").trim() || null;
+    meta.orientation = exif?.Orientation || null;
+    meta.gps = (latitude !== null && longitude !== null) ? { latitude, longitude } : null;
+  } catch (e) {
+    // Brak/nieczytelne EXIF nie jest błędem uploadu — zwracamy tylko pola bazowe.
+  }
+  return meta;
+}
+
+function formatAttachmentMetadata(att = {}) {
+  const md = att.metadata || {};
+  const gps = md.gps && Number.isFinite(md.gps.latitude) && Number.isFinite(md.gps.longitude)
+    ? `${md.gps.latitude}, ${md.gps.longitude}`
+    : "brak";
+  const dims = (Number.isFinite(md.width_px) && Number.isFinite(md.height_px))
+    ? `${md.width_px}x${md.height_px}`
+    : "brak";
+  return [
+    `- plik: ${att.name || md.file_name || "nieznany"}`,
+    `  mime: ${md.mime || att.mime || "brak"}`,
+    `  rozmiar: ${Number.isFinite(md.size_bytes) ? `${md.size_bytes} B` : (Number.isFinite(att.size) ? `${att.size} B` : "brak")}`,
+    `  wymiary: ${dims}`,
+    `  data EXIF: ${md.exif_timestamp || "brak"}`,
+    `  urządzenie: ${md.device_model || "brak"}`,
+    `  orientacja: ${md.orientation || "brak"}`,
+    `  GPS: ${gps}`
+  ].join("\n");
+}
+
 // ────────────────────────────────
 // API
 // ────────────────────────────────
@@ -352,6 +412,7 @@ app.post("/chat", requireToken, limiter, async (req, res) => {
     const imageParts = [];
     const attachmentNotes = [];
     const failedImages = [];
+    const imageMetadataNotes = [];
     for (const att of attachments) {
       const looksLikeImage = /^image\//i.test(att?.mime || "") || /\.(png|jpe?g|gif|webp)$/i.test(att?.url || att?.name || "");
       if (looksLikeImage) {
@@ -359,6 +420,7 @@ app.post("/chat", requireToken, limiter, async (req, res) => {
         if (loaded) {
           imageParts.push(loaded.part);
           attachmentNotes.push(loaded.label);
+          imageMetadataNotes.push(formatAttachmentMetadata(att));
         } else {
           failedImages.push(att?.name || att?.url || "nieznany_plik");
         }
@@ -429,6 +491,10 @@ app.post("/chat", requireToken, limiter, async (req, res) => {
         role: "system",
         content: `Użytkownik dołączył obrazy (${attachmentNotes.join(", ")}). Masz dostęp do obrazów — oglądaj je i opisuj, odpowiadaj na podstawie zawartości. Nie odmawiaj opisu.`
       });
+      messages.splice(2, 0, {
+        role: "system",
+        content: `Metadane załączonych obrazów (z odczytu pliku):\n${imageMetadataNotes.join("\n")}\nJeśli pole ma wartość "brak", oznacza to brak tej metadanej w pliku.`
+      });
     }
 
     const modelToUse = imageParts.length ? VISION_MODEL : MODEL;
@@ -465,11 +531,17 @@ app.post("/upload", requireToken, limiter, (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-    const files = (req.files || []).map(f => ({
-      name: sanitizeName(f.originalname),
-      mime: f.mimetype,
-      size: f.size,
-      url: `/uploads/${path.basename(f.path)}`
+    const files = await Promise.all((req.files || []).map(async f => {
+      const item = {
+        name: sanitizeName(f.originalname),
+        mime: f.mimetype,
+        size: f.size,
+        url: `/uploads/${path.basename(f.path)}`
+      };
+      if (/^image\//i.test(f.mimetype || "")) {
+        item.metadata = await readImageMetadata(f);
+      }
+      return item;
     }));
 
     let needsConvert = false;
