@@ -618,7 +618,6 @@
     const saveServer = document.getElementById("saveServer");
     const searchToggle = document.getElementById("searchToggle");
     const logoutBtn = document.getElementById("logoutBtn");
-    const thinking = document.getElementById("thinking");
     const history = [];
     const attachmentsPreview = [];
     const STORAGE_KEY = "lyr-conversation";
@@ -754,11 +753,9 @@
 
     function setThinking(on) {
       if (on) {
-        if (thinking) thinking.classList.add("show");
         sendBtn.disabled = true;
         input.disabled = true;
       } else {
-        if (thinking) thinking.classList.remove("show");
         sendBtn.disabled = false;
         input.disabled = false;
         input.focus();

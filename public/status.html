@@ -209,9 +209,17 @@
         setTimeout(load, 1200);
       } catch (e) { alert("Błąd /reload"); }
     };
-    document.getElementById("openJson").onclick = () => {
-      const url = apiToken ? `/status?token=${encodeURIComponent(apiToken)}` : "/status";
-      window.open(url, "_blank");
+    document.getElementById("openJson").onclick = async () => {
+      try {
+        const r = await fetch("/status", { headers: authHeaders() });
+        const j = await r.json();
+        const w = window.open("", "_blank");
+        if (!w) return;
+        w.document.write(`<pre>${JSON.stringify(j, null, 2)}</pre>`);
+        w.document.close();
+      } catch (e) {
+        alert("Nie można otworzyć JSON statusu");
+      }
     };
   </script>
 </body>

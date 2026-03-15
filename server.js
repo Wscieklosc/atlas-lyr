@@ -29,6 +29,7 @@ dotenv.config();
 
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || "http://localhost:3000,http://127.0.0.1:3000").split(",").map(s => s.trim()).filter(Boolean);
 const API_TOKEN = process.env.API_TOKEN || process.env.ATLAS_TOKEN || "";
+const ALLOW_NO_TOKEN = process.env.ALLOW_NO_TOKEN === "true";
 // TODO: Token nigdy nie powinien trafiać do logów ani odpowiedzi.
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
 const GITHUB_DEFAULT_REPO = process.env.GITHUB_DEFAULT_REPO || "";
@@ -52,7 +53,14 @@ app.use(cors(corsOptions));
 // serving uploaded files.
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let OPENAI_CLIENT = null;
+function getOpenAIClient() {
+  if (OPENAI_CLIENT) return OPENAI_CLIENT;
+  const key = (process.env.OPENAI_API_KEY || "").trim();
+  if (!key) return null;
+  OPENAI_CLIENT = new OpenAI({ apiKey: key });
+  return OPENAI_CLIENT;
+}
 // Default model used when no MODEL environment variable is provided.
 // Use GPT‑4o by default instead of the non-existent "gpt-5" model.
 const MODEL = process.env.MODEL || "gpt-4o";
@@ -158,6 +166,14 @@ function refreshDocs() {
   rebuildDocsText();
 }
 
+function runConvertDocs() {
+  return new Promise((resolve, reject) => {
+    const child = spawn("./convert_docs.sh", { cwd: __dirnameResolved, shell: true, stdio: "inherit" });
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code));
+  });
+}
+
 function searchChunks(query, k = 8) {
   if (!INDEX.length) return [];
   for (const it of INDEX) it.scoreTmp = score(query, it.text);
@@ -258,10 +274,10 @@ const upload = multer({
 });
 
 function requireToken(req, res, next) {
-  // Jeśli nie ustawiono API_TOKEN, wpuszczamy (lokalny dostęp / dev)
-  if (!API_TOKEN) return next();
+  // Tryb otwarty tylko po jawnym ALLOW_NO_TOKEN=true
+  if (!API_TOKEN && ALLOW_NO_TOKEN) return next();
 
-  const rawHeader = req.get("x-api-token") || req.query.token || "";
+  const rawHeader = req.get("x-api-token") || "";
   let token = (rawHeader || "").trim();
   try {
     if (token) token = decodeURIComponent(token).trim();
@@ -282,6 +298,14 @@ function requireToken(req, res, next) {
       { hdrLen: token.length, envLen: expected.length, hdrHash: hash(token), envHash: hash(expected) });
   } catch {}
   return res.status(401).json({ ok: false, message: "Brak dostępu (x-api-token)" });
+}
+
+function requireLocalShutdown(req, res, next) {
+  const ip = (req.ip || req.socket?.remoteAddress || "").trim();
+  const host = (req.hostname || "").toLowerCase();
+  const localIps = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+  if (host === "localhost" || localIps.has(ip)) return next();
+  return res.status(403).json({ ok: false, message: "Brak dostępu (tylko lokalnie)" });
 }
 
 const limiter = rateLimit({
@@ -409,6 +433,8 @@ app.post("/chat", requireToken, limiter, async (req, res) => {
 
     const modelToUse = imageParts.length ? VISION_MODEL : MODEL;
 
+    const client = getOpenAIClient();
+    if (!client) throw new Error("OPENAI_API_KEY missing");
     const completion = await client.chat.completions.create({ model: modelToUse, messages });
     const reply = completion.choices?.[0]?.message?.content?.trim() || "";
 
@@ -437,7 +463,7 @@ app.post("/upload", requireToken, limiter, (req, res, next) => {
     }
     next();
   });
-}, (req, res) => {
+}, async (req, res) => {
   try {
     const files = (req.files || []).map(f => ({
       name: sanitizeName(f.originalname),
@@ -481,8 +507,8 @@ app.post("/upload", requireToken, limiter, (req, res, next) => {
     if (needsConvert) {
       try {
         const start = Date.now();
-        const conv = spawnSync("./convert_docs.sh", { cwd: __dirnameResolved, shell: true, stdio: "inherit" });
-        console.log("convert_docs.sh (upload) code:", conv.status);
+        const code = await runConvertDocs();
+        console.log("convert_docs.sh (upload) code:", code);
         try { refreshDocs(); } catch (e) { console.error("refreshDocs error", e); }
         conversionInfo = {
           ran: true,
@@ -525,7 +551,7 @@ app.post("/save-conversation", requireToken, limiter, (req, res) => {
 });
 
 // Zamknięcie serwera (lokalnie)
-app.post("/shutdown", requireToken, (_req, res) => {
+app.post("/shutdown", requireToken, requireLocalShutdown, (_req, res) => {
   res.json({ ok: true, message: "Serwer wyłączany..." });
   setTimeout(() => process.exit(0), 100);
 });
@@ -634,4 +660,12 @@ app.post("/reload", requireToken, limiter, (_req, res) => {
 
 // start
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Atlas Lyr działa: http://localhost:${PORT}`));
+function startServer(port = PORT) {
+  return app.listen(port, () => console.log(`Atlas Lyr działa: http://localhost:${port}`));
+}
+
+if (require.main === module) {
+  startServer(PORT);
+}
+
+module.exports = { app, startServer, requireToken };

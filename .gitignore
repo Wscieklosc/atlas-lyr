@@ -50,3 +50,6 @@ memory.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Codex workspace / environment
+.codex/

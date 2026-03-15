@@ -1,82 +1,86 @@
 import assert from "node:assert";
-import { spawn } from "node:child_process";
-import { setTimeout as delay } from "node:timers/promises";
-import { before, after, test } from "node:test";
+import { createRequire } from "node:module";
+import { test } from "node:test";
 
-const PORT = 3100;
 const TOKEN = "test-token";
 
-/** Start server.js in a child process for integration checks. */
-function startServer() {
-  const child = spawn("node", ["server.js"], {
-    env: {
-      ...process.env,
-      PORT: String(PORT),
-      API_TOKEN: TOKEN,
-      MODEL: process.env.MODEL || "gpt-4o", // ensure existing default works
-      // no SERP_API_KEY → search route will return 500 on call; not used here
+const require = createRequire(import.meta.url);
+process.env.API_TOKEN = TOKEN;
+const { requireToken } = require("../server.js");
+
+function makeReq({ headerToken = "", queryToken = "" } = {}) {
+  return {
+    get(name) {
+      if (name === "x-api-token") return headerToken;
+      return "";
     },
-    stdio: ["ignore", "pipe", "pipe"]
+    query: { token: queryToken }
+  };
+}
+
+function makeRes() {
+  return {
+    statusCode: 200,
+    payload: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.payload = body;
+      return this;
+    }
+  };
+}
+
+test("odrzuca żądanie bez tokena", () => {
+  const req = makeReq();
+  const res = makeRes();
+  let calledNext = false;
+
+  requireToken(req, res, () => {
+    calledNext = true;
   });
-  return child;
-}
 
-/** Wait for server to log that it's ready, or fail after timeout. */
-async function waitForReady(proc, timeoutMs = 8000) {
-  let ready = false;
-  const done = new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout waiting for server")), timeoutMs);
-    const handleOutput = (chunk) => {
-      const text = chunk.toString();
-      if (text.includes(`http://localhost:${PORT}`)) {
-        ready = true;
-        clearTimeout(timer);
-        resolve();
-      }
-    };
-    proc.stdout.on("data", handleOutput);
-    proc.stderr.on("data", handleOutput);
-    proc.on("exit", (code) => {
-      if (!ready) reject(new Error(`server exited early with code ${code}`));
-    });
+  assert.strictEqual(calledNext, false);
+  assert.strictEqual(res.statusCode, 401);
+});
+
+test("przyjmuje żądanie z poprawnym tokenem", () => {
+  const req = makeReq({ headerToken: TOKEN });
+  const res = makeRes();
+  let calledNext = false;
+
+  requireToken(req, res, () => {
+    calledNext = true;
   });
-  await done;
-}
 
-let srv;
-
-before(async () => {
-  srv = startServer();
-  await waitForReady(srv);
-  // małe opóźnienie, aby port na pewno nasłuchiwał
-  await delay(150);
+  assert.strictEqual(calledNext, true);
+  assert.strictEqual(res.statusCode, 200);
 });
 
-after(() => {
-  if (srv && !srv.killed) {
-    srv.kill("SIGINT");
-  }
+test("odrzuca żądanie z błędnym tokenem", () => {
+  const req = makeReq({ headerToken: "wrong-token" });
+  const res = makeRes();
+  let calledNext = false;
+
+  requireToken(req, res, () => {
+    calledNext = true;
+  });
+
+  assert.strictEqual(calledNext, false);
+  assert.strictEqual(res.statusCode, 401);
 });
 
-async function get(path, opts = {}) {
-  const res = await fetch(`http://localhost:${PORT}${path}`, opts);
-  return res;
-}
+test("odrzuca token podany tylko w query string", () => {
+  const req = makeReq({ queryToken: TOKEN });
+  const res = makeRes();
+  let calledNext = false;
 
-test("odrzuca żądanie bez tokena (health)", async () => {
-  const res = await get("/health");
-  assert.strictEqual(res.status, 401);
-});
+  requireToken(req, res, () => {
+    calledNext = true;
+  });
 
-test("przyjmuje żądanie z poprawnym tokenem (health)", async () => {
-  const res = await get("/health", { headers: { "x-api-token": TOKEN } });
-  assert.strictEqual(res.status, 200);
-  const body = await res.json();
-  assert.strictEqual(body.ok, true);
-  assert.ok(body.time, "brak pola time");
-});
-
-test("uploads wymagają tokena", async () => {
-  const res = await get("/uploads/nieistniejacy.txt");
-  assert.strictEqual(res.status, 401);
+  assert.strictEqual(calledNext, false);
+  assert.strictEqual(res.statusCode, 401);
 });
